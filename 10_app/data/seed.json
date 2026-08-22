@@ -1,0 +1,145 @@
+[
+  {
+    "id": "lena-park",
+    "type": "artist",
+    "title": "박정현",
+    "credits": { "performer": "박정현" },
+    "spotifyUrl": null,
+    "tags": [],
+    "intent": "taste",
+    "note": "",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "heun",
+    "type": "artist",
+    "title": "흰 (박혜원)",
+    "credits": { "performer": "흰" },
+    "spotifyUrl": null,
+    "tags": [],
+    "intent": "taste",
+    "note": "",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "wendy-covers",
+    "type": "track",
+    "title": "(방송 커버곡 — 곡명은 추후 개별 채움)",
+    "credits": { "performer": "웬디", "originalArtist": null },
+    "spotifyUrl": null,
+    "tags": ["방송커버"],
+    "intent": "taste",
+    "note": "카테고리 자리만 잡음. 실제로는 곡별로 엔트리 여러 개 생길 것",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "boynextdoor",
+    "type": "artist",
+    "title": "보이넥스트도어",
+    "credits": { "performer": "보이넥스트도어" },
+    "spotifyUrl": null,
+    "tags": ["딸픽"],
+    "intent": "family",
+    "note": "",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "rescene",
+    "type": "artist",
+    "title": "리센느 (RESCENE)",
+    "credits": { "performer": "리센느" },
+    "spotifyUrl": null,
+    "tags": ["딸픽", "2024 데뷔"],
+    "intent": "family",
+    "note": "5인조 다국적 걸그룹. 2024년 'yoyo'·'uhuh'로 데뷔. 2026년 8월 아이돌 브랜드 평판 2위(BTS 다음).",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "yunchan-lim-chopin-etudes",
+    "type": "track",
+    "title": "쇼팽: 에튀드 전곡",
+    "credits": { "performer": "임윤찬", "composer": "프레데리크 쇼팽" },
+    "spotifyUrl": null,
+    "tags": ["클래식", "한국음악가"],
+    "intent": "explore",
+    "note": "Decca, 2024. 2024 그라모폰 어워즈 피아노상 + 올해의 젊은 아티스트상 2관왕 — 그라모폰상을 받은 최초의 한국인 피아니스트.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "cho-seongjin-mozart",
+    "type": "track",
+    "title": "모차르트: 피아노 소나타 & 피아노 협주곡 20번",
+    "credits": { "performer": "조성진", "composer": "볼프강 아마데우스 모차르트", "conductor": "야닉 네제세갱", "ensemble": "유럽체임버오케스트라" },
+    "spotifyUrl": null,
+    "tags": ["클래식", "한국음악가"],
+    "intent": "explore",
+    "note": "Deutsche Grammophon, 2018.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "hilary-hahn-ysaye",
+    "type": "track",
+    "title": "이자이: 무반주 바이올린 소나타 전곡",
+    "credits": { "performer": "힐러리 한", "composer": "외젠 이자이" },
+    "spotifyUrl": null,
+    "tags": ["클래식"],
+    "intent": "explore",
+    "note": "2024 그라모폰 어워즈 올해의 레코딩.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "nielsen-4-5-luisi",
+    "type": "track",
+    "title": "닐센: 교향곡 4번·5번",
+    "credits": { "composer": "칼 닐센", "conductor": "파비오 루이지", "ensemble": "덴마크 국립 심포니 오케스트라" },
+    "spotifyUrl": null,
+    "tags": ["클래식"],
+    "intent": "explore",
+    "note": "2023 그라모폰 어워즈 올해의 레코딩.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "britten-peter-grimes",
+    "type": "track",
+    "title": "브리튼: 오페라 '피터 그라임스'",
+    "credits": { "composer": "벤저민 브리튼", "conductor": "에드워드 가드너", "ensemble": "베르겐 필하모닉 오케스트라" },
+    "spotifyUrl": null,
+    "tags": ["클래식", "오페라"],
+    "intent": "explore",
+    "note": "Chandos, 2021. 2021 그라모폰 어워즈 올해의 레코딩.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "korngold-die-tote-stadt",
+    "type": "track",
+    "title": "코른골트: 오페라 '죽음의 도시'",
+    "credits": { "composer": "에리히 볼프강 코른골트", "performer": "요나스 카우프만, 마를리스 페테르젠" },
+    "spotifyUrl": null,
+    "tags": ["클래식", "오페라"],
+    "intent": "explore",
+    "note": "2022 그라모폰 어워즈 올해의 레코딩.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "yuja-wang-berlin-recital",
+    "type": "track",
+    "title": "베를린 리사이틀",
+    "credits": { "performer": "유자 왕" },
+    "spotifyUrl": null,
+    "tags": ["클래식", "기악"],
+    "intent": "explore",
+    "note": "Deutsche Grammophon, 2018. 그라모폰 어워드 기악 부문 수상.",
+    "addedAt": "2026-08-22"
+  },
+  {
+    "id": "olafsson-goldberg",
+    "type": "track",
+    "title": "바흐: 골드베르크 변주곡",
+    "credits": { "performer": "비킹구르 올라프손", "composer": "요한 제바스티안 바흐" },
+    "spotifyUrl": null,
+    "tags": ["클래식"],
+    "intent": "explore",
+    "note": "Deutsche Grammophon. 2025 그래미 클래식 기악 솔로상, BBC 뮤직 매거진 올해의 음반, Opus Klassik 2회 수상.",
+    "addedAt": "2026-08-22"
+  }
+]

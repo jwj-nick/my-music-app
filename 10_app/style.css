@@ -1,0 +1,176 @@
+/* Phase 1 뼈대용 최소 스타일. 의도적으로 안 꾸밈 — 디자인은 Phase 2. */
+
+body {
+  margin: 0;
+  padding: 1rem;
+  font-family: system-ui, -apple-system, "Malgun Gothic", sans-serif;
+  max-width: 640px;
+  margin: 0 auto;
+  color: #222;
+  background: #fff;
+}
+
+header h1 { margin-bottom: 0.2rem; }
+header .sub { margin-top: 0; color: #666; font-size: 0.9rem; }
+
+.recommend {
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.2rem;
+}
+.recommend h2 { font-size: 0.95rem; margin: 0 0 0.6rem; }
+
+.filter-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-bottom: 0.5rem;
+}
+
+.filter-row button {
+  border: 1px solid #999;
+  background: #fff;
+  border-radius: 999px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.filter-row button.active {
+  background: #222;
+  color: #fff;
+  border-color: #222;
+}
+
+.count { color: #666; font-size: 0.85rem; margin: 0.3rem 0 1rem; }
+
+.card {
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 0.7rem;
+}
+
+.card-top { display: flex; align-items: baseline; gap: 0.5rem; flex-wrap: wrap; }
+.card-top h3 { margin: 0; font-size: 1.05rem; }
+
+.intent-tag {
+  font-size: 0.7rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  color: #fff;
+}
+.intent-taste { background: #3a7d44; }
+.intent-explore { background: #2a5f8f; }
+.intent-family { background: #a15c9e; }
+
+.credits { margin: 0.3rem 0; color: #444; font-size: 0.9rem; }
+
+.tags { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
+.tag {
+  font-size: 0.75rem;
+  background: #eee;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  color: #555;
+}
+
+.note { font-size: 0.85rem; color: #666; margin: 0.4rem 0; }
+.listen-summary { font-size: 0.78rem; color: #888; margin: 0 0 0.3rem; }
+
+.play-btn {
+  display: inline-block;
+  font-size: 0.85rem;
+  text-decoration: none;
+  color: #1db954;
+  border: 1px solid #1db954;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin-top: 0.4rem;
+}
+
+.card-actions button {
+  border: 1px solid #ccc;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+
+.muted { color: #999; }
+
+.note-edit {
+  width: 100%;
+  font: inherit;
+  padding: 0.3rem;
+  box-sizing: border-box;
+  margin: 0.4rem 0;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 0.6rem;
+}
+
+.actions button {
+  border: 1px solid #222;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.add-form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.7rem;
+  margin-bottom: 0.8rem;
+}
+
+.add-form input,
+.add-form select,
+.add-form textarea {
+  font: inherit;
+  padding: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.add-form button {
+  align-self: flex-start;
+  border: 1px solid #222;
+  background: #222;
+  color: #fff;
+  border-radius: 6px;
+  padding: 0.35rem 0.9rem;
+  cursor: pointer;
+}
+
+.form-error {
+  color: #b3261e;
+  font-size: 0.82rem;
+  margin: 0;
+}
+
+.export-box {
+  width: 100%;
+  box-sizing: border-box;
+  height: 8rem;
+  font-family: ui-monospace, monospace;
+  font-size: 0.78rem;
+  margin-bottom: 0.8rem;
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>my-music-app (Phase 1 뼈대)</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>my-music-app</h1>
+    <p class="sub">Nick 전용 취향 큐레이션 · Phase 1 뼈대 (디자인은 Phase 2에서)</p>
+  </header>
+
+  <section class="filters">
+    <div id="intent-filter" class="filter-row"></div>
+    <div id="tag-filter" class="filter-row"></div>
+    <p id="count" class="count"></p>
+
+    <div class="actions">
+      <button id="add-toggle" type="button">+ 새 항목 추가</button>
+      <button id="export-toggle" type="button">내보내기</button>
+    </div>
+
+    <div id="add-form" class="add-form" hidden>
+      <input id="f-title" placeholder="제목 (곡명/아티스트명)">
+      <input id="f-performer" placeholder="연주자/아티스트">
+      <select id="f-intent">
+        <option value="taste">내 취향</option>
+        <option value="explore">교양 탐구</option>
+        <option value="family">가족 탐구</option>
+      </select>
+      <input id="f-tags" placeholder="태그 (쉼표로 구분)">
+      <textarea id="f-note" placeholder="메모"></textarea>
+      <p id="f-error" class="form-error"></p>
+      <button id="f-save" type="button">저장</button>
+    </div>
+
+    <textarea id="export-box" class="export-box" hidden readonly></textarea>
+  </section>
+
+  <section class="recommend">
+    <h2 id="recommend-heading"></h2>
+    <div id="recommend-list" class="entry-list"></div>
+  </section>
+
+  <main id="entry-list" class="entry-list"></main>
+
+  <script src="app.js"></script>
+</body>
+</html>

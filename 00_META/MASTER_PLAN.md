@@ -4,7 +4,8 @@
 > 학습 체크포인트(무엇을 알아야 하는지, 이미 아는지)는 `learning_plan.md`에 따로 관리한다.
 
 ## 현재 위치
-**Phase 1 — 마일스톤 1.7(청취 로그) 확인 대기** (1.1~1.6 완료, 2026-08-22)
+**Phase 1 — 마일스톤 1.8(첫 공개 배포) 기술적으로 완료, Nick 폰 확인 대기** (1.1~1.7 완료, 2026-08-22)
+**Live:** https://jwj-nick.github.io/my-music-app/ · **Repo:** https://github.com/jwj-nick/my-music-app
 
 ## 작업 방식 — 학습 우선
 이 프로젝트는 결과물만큼 "만드는 과정을 완전히 이해하는 것"이 목표다. 자율진행(Claude가 알아서 빠르게 다 만드는 것)을 쓰지 않는다. 마일스톤마다 아래 순서를 지킨다.
@@ -58,8 +59,8 @@
 | 1.4 | 정적 뼈대 앱 (목록·필터·Spotify 딥링크) | `10_app/index.html`·`app.js`·`style.css` | 로컬 서버(`python -m http.server`)로 열어 리스트·필터·딥링크 확인. 원격 리뷰용 프리뷰 아티팩트도 병행 | `node --check app.js` 문법 검사 통과 | ✅ |
 | 1.5 | 인앱 데이터 입력 (추가/태깅/메모, localStorage) | app.js 확장 — seed·overrides·local 3레이어 병합, "+ 새 항목"·"메모 편집"·"삭제"·"내보내기" | 새 엔트리 추가 → 새로고침해도 남는지, 다른 브라우저에서 열면 안 보이는지(로컬스토리지 특성 체감) 확인 | `node --check app.js` 통과 + 프리뷰 아티팩트에서 추가/편집/삭제 직접 확인 | ✅ |
 | 1.6 | 규칙 기반 추천 로직 | app.js — `recommend(pool, queryTags)` 순수 함수 + "오늘의 추천" 섹션 | 태그 조합 3개를 먼저 예상해보고 코드 결과와 대조 | `node test_recommend.js` — 고정 케이스 4개 자동 회귀 테스트, 전부 통과 | ✅ |
-| 1.7 | 청취 로그 | app.js 확장 — "들었음" 버튼, `mma_logs` localStorage, 오늘 들은 항목은 추천에서 후순위(`excludeIds`) | "들었음" 클릭 → 로그 누적 표시, "오늘의 추천"에서 방금 들은 게 뒤로 밀리는지 확인 | `node test_recommend.js` case 5·6 — excludeIds 반영 검증, 통과 | 🔄 Nick 확인 대기 |
-| 1.8 | 첫 공개 배포 (GitHub repo 생성 + Pages) | 실제 URL | 폰 브라우저로 접속해 1.1~1.7 전부 재확인 — Phase 1의 최종 게이트 | 배포 후 스모크 체크리스트 재실행 | |
+| 1.7 | 청취 로그 | app.js 확장 — "들었음" 버튼, `mma_logs` localStorage, 오늘 들은 항목은 추천에서 후순위(`excludeIds`) | "들었음" 클릭 → 로그 누적 표시, "오늘의 추천"에서 방금 들은 게 뒤로 밀리는지 확인 | `node test_recommend.js` case 5·6 — excludeIds 반영 검증, 통과 | ✅ |
+| 1.8 | 첫 공개 배포 (GitHub repo 생성 + Pages) | repo `jwj-nick/my-music-app`(public) + GitHub Actions Pages 배포. Live: https://jwj-nick.github.io/my-music-app/ | 폰 브라우저로 라이브 URL 접속해 1.1~1.7 전부 재확인 — Phase 1의 최종 게이트 | `curl` 200 확인(index.html·app.js·seed.json) + Actions 워크플로 success | 🔄 Nick 확인 대기 |
 
 Phase 1.5(AI 연결) 이후 마일스톤은 Phase 1을 끝낸 시점에 구체화한다 — 지금 확정하면 실제 기술 답사 없이 추측하게 된다.
 

@@ -21,7 +21,7 @@
 6. 오늘 변경 범위를 합의한 뒤 작업 → 원본→생성물 규칙·학습 우선 작업 방식 준수.
 
 ## 불변 원칙
-- **공개 범위:** 단일 public repo 직행 (2026-08-22 Nick 확정 — "전체 공개 괜찮음"). study-quiz/uvm-drill과 같은 패턴: 워크스페이스 자체가 곧 배포 repo. GitHub repo 생성·최초 push는 Phase 1 첫 배포 시점에 이 워크스페이스 세션에서 진행 (지금은 로컬 git만).
+- **공개 범위:** 단일 public repo 직행 (2026-08-22 Nick 확정 — "전체 공개 괜찮음"). study-quiz/uvm-drill과 같은 패턴: 워크스페이스 자체가 곧 배포 repo. **2026-08-22 마일스톤 1.8에서 생성 완료** — `github.com/jwj-nick/my-music-app`(public), Live `https://jwj-nick.github.io/my-music-app/`(GitHub Actions가 `10_app/`만 배포).
 - **git 규율:** `git add -A` 금지 — 건드린 경로만 명시적 스테이징.
 - **원본→생성물 규칙:** 청취 기록·태그·플레이리스트 데이터가 원본, 앱 UI 코드는 그 위에서 돌아가는 생성물. 데이터 구조가 먼저, 화면은 나중.
 - **사용자 1명 전제:** 확장성·다중 테넌시를 미리 설계하지 않는다. 단순화가 정답.

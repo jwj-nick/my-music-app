@@ -4,7 +4,7 @@
 > 학습 체크포인트(무엇을 알아야 하는지, 이미 아는지)는 `learning_plan.md`에 따로 관리한다.
 
 ## 현재 위치
-**Phase 1 — 마일스톤 1.8(첫 공개 배포) 기술적으로 완료, Nick 폰 확인 대기** (1.1~1.7 완료, 2026-08-22)
+**✅ Phase 1 완료** (2026-08-22, Nick이 폰에서 라이브 배포 직접 확인) — 다음은 Phase 1.5(AI 연결) 컨셉 확정.
 **Live:** https://jwj-nick.github.io/my-music-app/ · **Repo:** https://github.com/jwj-nick/my-music-app
 
 ## 작업 방식 — 학습 우선
@@ -19,7 +19,7 @@
 | Phase | 내용 | 상태 |
 |---|---|---|
 | 0 | 방향 확정 — 재생 소스(Q01)·취향 데이터 유무(Q02)·폰/데스크톱 우선순위(Q03) | ✅ |
-| 1 | 기능 기초 — 데이터 모델, 정적 뼈대 앱, 인앱 입력, 규칙 기반 추천, 청취 로그, 첫 GitHub Pages 공개 배포 | 🔄 진행 중 |
+| 1 | 기능 기초 — 데이터 모델, 정적 뼈대 앱, 인앱 입력, 규칙 기반 추천, 청취 로그, 첫 GitHub Pages 공개 배포 | ✅ |
 | 1.5 | AI 연결 — 폰에서 즉석으로 취향을 탐구·확장하는 기능. 서버리스 백엔드 최초 도입 | ⏳ Phase 1 이후 구체화 |
 | 2 | 디자인 심화 — 앨범아트 그리드·타이포그래피·모션·다크/라이트 테마·클래식/아이돌 별도 탭(Q06). 포트폴리오급 UI | ⏳ Phase 1.5 이후 |
 | 3 | APK 패키징 — 실제 안드로이드 폰에 설치해 쓰는 최종 형태 | ⏳ Phase 1 직후 러프 1차, Phase 2 직후 최종 2차 |
@@ -60,7 +60,7 @@
 | 1.5 | 인앱 데이터 입력 (추가/태깅/메모, localStorage) | app.js 확장 — seed·overrides·local 3레이어 병합, "+ 새 항목"·"메모 편집"·"삭제"·"내보내기" | 새 엔트리 추가 → 새로고침해도 남는지, 다른 브라우저에서 열면 안 보이는지(로컬스토리지 특성 체감) 확인 | `node --check app.js` 통과 + 프리뷰 아티팩트에서 추가/편집/삭제 직접 확인 | ✅ |
 | 1.6 | 규칙 기반 추천 로직 | app.js — `recommend(pool, queryTags)` 순수 함수 + "오늘의 추천" 섹션 | 태그 조합 3개를 먼저 예상해보고 코드 결과와 대조 | `node test_recommend.js` — 고정 케이스 4개 자동 회귀 테스트, 전부 통과 | ✅ |
 | 1.7 | 청취 로그 | app.js 확장 — "들었음" 버튼, `mma_logs` localStorage, 오늘 들은 항목은 추천에서 후순위(`excludeIds`) | "들었음" 클릭 → 로그 누적 표시, "오늘의 추천"에서 방금 들은 게 뒤로 밀리는지 확인 | `node test_recommend.js` case 5·6 — excludeIds 반영 검증, 통과 | ✅ |
-| 1.8 | 첫 공개 배포 (GitHub repo 생성 + Pages) | repo `jwj-nick/my-music-app`(public) + GitHub Actions Pages 배포. Live: https://jwj-nick.github.io/my-music-app/ | 폰 브라우저로 라이브 URL 접속해 1.1~1.7 전부 재확인 — Phase 1의 최종 게이트 | `curl` 200 확인(index.html·app.js·seed.json) + Actions 워크플로 success | 🔄 Nick 확인 대기 |
+| 1.8 | 첫 공개 배포 (GitHub repo 생성 + Pages) | repo `jwj-nick/my-music-app`(public) + GitHub Actions Pages 배포. Live: https://jwj-nick.github.io/my-music-app/ | 폰 브라우저로 라이브 URL 접속해 1.1~1.7 전부 재확인 — Phase 1의 최종 게이트 | `curl` 200 확인(index.html·app.js·seed.json) + Actions 워크플로 success | ✅ Nick 폰 확인 완료 |
 
 Phase 1.5(AI 연결) 이후 마일스톤은 Phase 1을 끝낸 시점에 구체화한다 — 지금 확정하면 실제 기술 답사 없이 추측하게 된다.
 

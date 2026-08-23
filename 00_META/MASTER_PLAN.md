@@ -4,7 +4,7 @@
 > 학습 체크포인트(무엇을 알아야 하는지, 이미 아는지)는 `learning_plan.md`에 따로 관리한다.
 
 ## 현재 위치
-**Phase 1.5 진행 중** — 1.5.1(컨셉·아키텍처 확정) 완료, 다음은 1.5.2(API 키 설정 UI). Phase 1은 2026-08-22 완료(Nick이 폰에서 라이브 배포 직접 확인).
+**Phase 1.5 진행 중** — 1.5.2(API 키 설정 UI) 구현 완료, Nick 확인 대기. 다음은 1.5.3(안전장치 점검). Phase 1은 2026-08-22 완료(Nick이 폰에서 라이브 배포 직접 확인).
 **Live:** https://jwj-nick.github.io/my-music-app/ · **Repo:** https://github.com/jwj-nick/my-music-app
 
 ## 작업 방식 — 학습 우선
@@ -65,7 +65,7 @@
 | # | 마일스톤 | 산출물 | 확인 방법 (Nick + Claude) | 테스트 방법 | 상태 |
 |---|---|---|---|---|---|
 | 1.5.1 | 컨셉·아키텍처 확정 | `decisions.md` #21~23 — 백엔드 없이 브라우저가 Claude API 직접 호출, API 키는 localStorage에만 저장 | API 키 노출 문제와 해결 방향을 Nick이 직접 설명 | 없음 — 설계 결정, 대화로 검증 | ✅ |
-| 1.5.2 | API 키 설정 UI | app.js 확장 — "설정"에서 키 입력/저장/삭제, `mma_api_key` localStorage | 입력 후 새로고침해도 남는지, 삭제하면 사라지는지 확인 | `node --check app.js` | ⏳ 다음 |
+| 1.5.2 | API 키 설정 UI | app.js/index.html/style.css 확장 — "설정"에서 키 입력/저장/삭제, `mma_api_key` localStorage | 입력 후 새로고침해도 남는지, 삭제하면 사라지는지 확인 | `node --check app.js` 통과 | 🔵 구현 완료, Nick 확인 대기 |
 | 1.5.3 | 안전장치 점검 | "내보내기"가 API 키를 포함하지 않음을 코드로 확인 + Anthropic 콘솔에서 이 키에 사용량 한도(spend limit) 설정 | 내보내기 결과 JSON 육안 확인 + 콘솔 설정 화면 확인 | 코드 리뷰 — export 함수가 API 키 변수를 참조하지 않는지 | ⏳ |
 | 1.5.4 | Claude API 직접 호출 함수 | `askClaude(prompt)` — 저장된 키로 fetch, 키 없음/네트워크 실패 에러 처리 | 브라우저에서 실제 질문 → 응답 확인 | `node --check app.js`(문법) + 수동 API 호출 확인 | ⏳ |
 | 1.5.5 | UI 연결 | "AI에게 물어보기" 입력 → 응답 표시 → 기존 "메모 편집" 흐름으로 지식노트 저장 | 질문 하나 던져서 노트에 반영되는지 확인 | `node --check app.js` | ⏳ |

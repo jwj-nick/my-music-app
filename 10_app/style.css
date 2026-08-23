@@ -174,3 +174,35 @@ header .sub { margin-top: 0; color: #666; font-size: 0.9rem; }
   font-size: 0.78rem;
   margin-bottom: 0.8rem;
 }
+
+.settings-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  padding: 0.7rem 1rem;
+  margin-bottom: 0.8rem;
+}
+
+.settings-box label { font-size: 0.85rem; font-weight: 600; }
+
+.settings-box input {
+  font: inherit;
+  padding: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.apikey-status { font-size: 0.82rem; color: #666; margin: 0; }
+.settings-note { font-size: 0.78rem; color: #888; margin: 0.2rem 0 0; }
+
+.settings-actions { display: flex; gap: 0.5rem; }
+.settings-actions button {
+  border: 1px solid #222;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}

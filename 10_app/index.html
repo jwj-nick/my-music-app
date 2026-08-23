@@ -20,6 +20,7 @@
     <div class="actions">
       <button id="add-toggle" type="button">+ 새 항목 추가</button>
       <button id="export-toggle" type="button">내보내기</button>
+      <button id="settings-toggle" type="button">설정</button>
     </div>
 
     <div id="add-form" class="add-form" hidden>
@@ -37,6 +38,17 @@
     </div>
 
     <textarea id="export-box" class="export-box" hidden readonly></textarea>
+
+    <div id="settings-box" class="settings-box" hidden>
+      <label for="f-apikey">Claude API 키</label>
+      <input id="f-apikey" type="password" placeholder="sk-ant-...">
+      <p id="apikey-status" class="apikey-status"></p>
+      <div class="settings-actions">
+        <button id="apikey-save" type="button">저장</button>
+        <button id="apikey-delete" type="button">삭제</button>
+      </div>
+      <p class="settings-note">이 키는 이 브라우저의 localStorage에만 저장됩니다 — git에 올라가지 않고, "내보내기"에도 포함되지 않으며, 다른 기기에서는 다시 입력해야 합니다.</p>
+    </div>
   </section>
 
   <section class="recommend">

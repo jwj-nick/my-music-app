@@ -13,6 +13,7 @@
 const LS_ENTRIES = "mma_local_entries";
 const LS_OVERRIDES = "mma_overrides";
 const LS_LOGS = "mma_logs";
+const LS_APIKEY = "mma_api_key"; // Claude API 키 — 절대 seed.json/git에 안 들어감, 이 브라우저에만 저장 (decisions.md #21)
 
 let allEntries = [];      // seed.json에서 읽은 고정 데이터
 let localEntries = [];    // 사용자가 앱에서 추가한 항목 (localStorage)
@@ -32,6 +33,7 @@ async function init() {
   logs = loadLogs();
   initAddForm();
   initExport();
+  initSettings();
   renderFilters();
   render();
 }
@@ -51,6 +53,22 @@ function loadOverrides() {
 }
 function saveOverrides(obj) {
   localStorage.setItem(LS_OVERRIDES, JSON.stringify(obj));
+}
+
+// ---- API 키 (마일스톤 1.5.2) ----
+//
+// 절대 seed.json이나 git에 들어가지 않는다 — 이 브라우저의 localStorage에만 저장된다.
+// "내보내기"(initExport)도 의도적으로 이 키를 포함하지 않는다 (안전장치, 마일스톤 1.5.3).
+// Phase 1.5.4에서 이 키로 Claude API를 브라우저가 직접 호출한다(백엔드 없음, decisions.md #21).
+
+function loadApiKey() {
+  return localStorage.getItem(LS_APIKEY) || "";
+}
+function saveApiKey(key) {
+  localStorage.setItem(LS_APIKEY, key);
+}
+function deleteApiKey() {
+  localStorage.removeItem(LS_APIKEY);
 }
 
 // ---- 청취 로그 (마일스톤 1.7) ----
@@ -333,10 +351,46 @@ function initExport() {
   toggleBtn.addEventListener("click", () => {
     box.hidden = !box.hidden;
     if (!box.hidden) {
+      // API 키는 의도적으로 포함하지 않는다 — localEntries/overrides만 seed.json 동기화 대상.
       box.value = JSON.stringify({ localEntries, overrides }, null, 2);
       box.select();
     }
   });
+}
+
+// ---- 설정 (API 키 입력/저장/삭제, 마일스톤 1.5.2) ----
+
+function initSettings() {
+  const toggleBtn = document.getElementById("settings-toggle");
+  const box = document.getElementById("settings-box");
+  const input = document.getElementById("f-apikey");
+  const statusEl = document.getElementById("apikey-status");
+
+  function refreshStatus() {
+    const key = loadApiKey();
+    statusEl.textContent = key ? `저장됨 (••••${key.slice(-4)})` : "저장된 키 없음";
+  }
+
+  toggleBtn.addEventListener("click", () => {
+    box.hidden = !box.hidden;
+    if (!box.hidden) refreshStatus();
+  });
+
+  document.getElementById("apikey-save").addEventListener("click", () => {
+    const key = input.value.trim();
+    if (!key) return;
+    saveApiKey(key);
+    input.value = "";
+    refreshStatus();
+  });
+
+  document.getElementById("apikey-delete").addEventListener("click", () => {
+    deleteApiKey();
+    input.value = "";
+    refreshStatus();
+  });
+
+  refreshStatus();
 }
 
 if (typeof document !== "undefined") {

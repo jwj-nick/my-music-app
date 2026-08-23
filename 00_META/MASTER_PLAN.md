@@ -67,8 +67,8 @@
 | 1.5.1 | 컨셉·아키텍처 확정 | `decisions.md` #21~23 — 백엔드 없이 브라우저가 Claude API 직접 호출, API 키는 localStorage에만 저장 | API 키 노출 문제와 해결 방향을 Nick이 직접 설명 | 없음 — 설계 결정, 대화로 검증 | ✅ |
 | 1.5.2 | API 키 설정 UI | app.js/index.html/style.css 확장 — "설정"에서 키 입력/저장/삭제, `mma_api_key` localStorage | 입력 후 새로고침해도 남는지, 삭제하면 사라지는지 확인 | `node --check app.js` 통과 | ✅ Nick 확인 완료 |
 | 1.5.3 | 안전장치 점검 | "내보내기"가 API 키를 포함하지 않음을 코드로 확인 + Anthropic 콘솔에서 이 키에 사용량 한도(spend limit) 설정 | 코드 검증(`grep`으로 `LS_APIKEY`가 export 대상에 없음 확인) 완료. 콘솔 spend limit은 Nick이 실제 키 발급 시 함께 설정 | 코드 리뷰 통과 | 🔵 코드 검증 완료, 콘솔 설정은 Nick 액션 대기 |
-| 1.5.4 | Claude API 직접 호출 함수 | `askClaude(prompt)` — 저장된 키로 fetch, 키 없음/네트워크 실패 에러 처리. `anthropic-dangerous-direct-browser-access` 헤더로 브라우저 CORS 허용 | 브라우저 콘솔에서 `await askClaude('...')`로 수동 호출 확인 | `node --check app.js`(문법) 통과 | 🔵 구현 완료, 실제 키로 확인 대기 |
-| 1.5.5 | UI 연결 | 카드마다 "AI에게 물어보기" 버튼 → 질문 입력 → 응답 → "메모에 저장"(기존 메모 뒤에 이어붙임) | 질문 하나 던져서 노트에 반영되는지 확인 — Nick의 API 키 필요(첫 실사용 지점) | `node --check app.js` 통과 | 🔵 구현 완료, 실제 키로 확인 대기 |
+| 1.5.4 | Claude API 직접 호출 함수 | `askClaude(prompt)` — 저장된 키로 fetch, 키 없음/네트워크 실패 에러 처리. `anthropic-dangerous-direct-browser-access` 헤더로 브라우저 CORS 허용. 웹 검색 도구 `web_search_20250305` 추가(decisions.md #28) — 최신/시사성 질문은 Claude가 스스로 검색 판단, 응답에 출처 URL 첨부 | **로컬 서버나 실제 배포 사이트에서** 확인 — 프리뷰 아티팩트는 CSP로 외부 fetch 차단되어 테스트 불가(decisions.md #27) | `node --check app.js`(문법) 통과 | 🔵 구현 완료(웹 검색 포함), 실제 키로 확인 대기 |
+| 1.5.5 | UI 연결 | 카드마다 "AI에게 물어보기" 버튼 → 질문 입력 → 응답 → "메모에 저장"(기존 메모 뒤에 이어붙임) | **https://jwj-nick.github.io/my-music-app/ 에서** 질문 하나 던져서 노트에 반영되는지 확인 (프리뷰 아티팩트 불가, decisions.md #27) | `node --check app.js` 통과 | 🔵 구현 완료, 실제 사이트에서 재확인 대기 |
 | 1.5.6 | 배포·최종 확인 | GitHub Pages 반영 | 폰에서 키 입력→질문→응답까지 실제로 확인 — Phase 1.5 최종 게이트 | 배포 후 스모크 체크 | ⏳ |
 
 Phase 2 마일스톤은 Phase 1.5를 끝낸 시점에 구체화한다.

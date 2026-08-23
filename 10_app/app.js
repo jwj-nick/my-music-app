@@ -15,7 +15,8 @@ const LS_OVERRIDES = "mma_overrides";
 const LS_LOGS = "mma_logs";
 const LS_APIKEY = "mma_api_key"; // Claude API 키 — 절대 seed.json/git에 안 들어감, 이 브라우저에만 저장 (decisions.md #21)
 const CLAUDE_MODEL = "claude-haiku-4-5-20251001"; // 개인 앱 운영비 0원 원칙(decisions.md #25) — 품질이 아쉬우면 이 상수만 교체
-const CLAUDE_MAX_TOKENS = 512;
+const CLAUDE_MAX_TOKENS = 1024;
+const CLAUDE_MAX_SEARCHES = 3; // 웹 검색 도구(decisions.md #28) — 질문 하나당 검색 상한, 검색 1회 = $0.01(+토큰)
 
 let allEntries = [];      // seed.json에서 읽은 고정 데이터
 let localEntries = [];    // 사용자가 앱에서 추가한 항목 (localStorage)
@@ -82,6 +83,10 @@ function deleteApiKey() {
 //
 // alert/confirm을 안 쓴다는 원칙대로, 실패도 예외를 던지지 않고 { error } 형태로 돌려준다 —
 // 호출하는 쪽(1.5.5 UI)이 화면에 인라인으로 표시하면 된다.
+//
+// 웹 검색 도구(decisions.md #28): Anthropic이 서버 쪽에서 직접 실행하는 "server tool"이라
+// 우리 쪽엔 백엔드가 여전히 필요 없다. 검색할지 말지는 Claude가 질문을 보고 스스로 판단한다
+// (최신/시사성 질문엔 검색, 일반 지식엔 바로 답) — 우리가 분기 로직을 따로 안 짜도 된다.
 async function askClaude(prompt) {
   const key = loadApiKey();
   if (!key) {
@@ -100,7 +105,8 @@ async function askClaude(prompt) {
       body: JSON.stringify({
         model: CLAUDE_MODEL,
         max_tokens: CLAUDE_MAX_TOKENS,
-        messages: [{ role: "user", content: prompt }]
+        messages: [{ role: "user", content: prompt }],
+        tools: [{ type: "web_search_20250305", name: "web_search", max_uses: CLAUDE_MAX_SEARCHES }]
       })
     });
   } catch (err) {
@@ -111,8 +117,15 @@ async function askClaude(prompt) {
     return { error: `API 오류 (${res.status}): ${bodyText.slice(0, 200)}` };
   }
   const data = await res.json();
-  const text = (data.content || []).map(block => block.text || "").join("");
-  return { text };
+  // content 배열엔 text 외에 server_tool_use/web_search_tool_result 블록도 섞여 온다 —
+  // text 블록만 걸러서 이어붙이면 자연스러운 답변 문단이 된다.
+  const textBlocks = (data.content || []).filter(b => b.type === "text");
+  const text = textBlocks.map(b => b.text || "").join("");
+  // 인용(citation)에 실제 출처 URL이 붙어 오면 답변 아래에 목록으로 모아 보여준다.
+  const urls = new Set();
+  textBlocks.forEach(b => (b.citations || []).forEach(c => { if (c.url) urls.add(c.url); }));
+  const sources = urls.size > 0 ? "\n\n출처:\n" + [...urls].map(u => "- " + u).join("\n") : "";
+  return { text: text + sources };
 }
 
 // ---- 청취 로그 (마일스톤 1.7) ----
@@ -295,7 +308,8 @@ function startAskAI(card, entry) {
 
     const context = `${entry.title} — ${formatCredits(entry.credits)}`;
     const { text, error } = await askClaude(
-      `다음 음악/아티스트에 대한 질문에 짧고 정확하게 답해줘. 대상: ${context}\n질문: ${question}`
+      `다음 음악/아티스트에 대한 질문에 답해줘. 최신 정보나 실제 링크가 필요한 질문이면 웹 검색을 써서 ` +
+      `정확한 정보로 답해. 대상: ${context}\n질문: ${question}`
     );
     if (error) {
       resultEl.textContent = error;

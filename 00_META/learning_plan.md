@@ -37,6 +37,7 @@
 | 개념 | 설명 | 체크 질문 | 확인 |
 |---|---|---|---|
 | Claude API 요청 포맷 | `messages` 배열(역할+내용), `model`, `anthropic-version`, 그리고 브라우저 직접호출을 허용시키는 `anthropic-dangerous-direct-browser-access` 헤더가 필요하다 | `askClaude()` 코드를 보고 각 헤더가 왜 필요한지 설명할 수 있는가 | ⏳ 다음 확인 때 |
+| 서버 도구(server tool) — 웹 검색 | `tools` 파라미터에 `web_search_20250305`를 넣으면, Claude가 필요하다고 판단할 때 Anthropic 서버에서 직접 검색을 실행하고 인용(URL)까지 붙여 응답한다. 우리 쪽엔 백엔드/검색 API 연동이 전혀 필요 없다 | 순수 텍스트 생성(1.5.4 최초 버전)과 도구 포함 호출은 응답 형식이 어떻게 다른가(content 배열에 어떤 블록 타입이 추가되는가) | ⏳ 다음 확인 때 — decisions.md #28 |
 | Workload Identity Federation(WIF)이 우리 경우에 안 맞는 이유 | WIF는 GitHub Actions·AWS·GCP·Entra ID·Kubernetes처럼 이미 신원이 있는 자동화 인프라(워크로드)를 위한 기능 — 브라우저에서 도는 개인 정적 사이트는 federation을 걸 대상(IdP)이 애초에 없다 | 우리 앱이 WIF를 못 쓰는 근본 이유는? | ✅ 2026-08-23 리서치로 확인, decisions.md #24 |
 
 ## Phase 2, 3 — 착수 시점에 채운다

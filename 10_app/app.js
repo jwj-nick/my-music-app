@@ -247,15 +247,81 @@ function renderCard(entry) {
       <a class="play-btn" href="${spotifyLink(entry)}" target="_blank" rel="noopener">Spotify에서 찾기</a>
       <button class="listen-btn" type="button">들었음</button>
       <button class="edit-note-btn" type="button">메모 편집</button>
+      <button class="ask-ai-btn" type="button">AI에게 물어보기</button>
       ${local ? '<button class="delete-btn" type="button">삭제</button>' : ""}
     </div>
   `;
   card.querySelector(".listen-btn").addEventListener("click", () => logListen(entry.id));
   card.querySelector(".edit-note-btn").addEventListener("click", () => startEditNote(card, entry));
+  card.querySelector(".ask-ai-btn").addEventListener("click", () => startAskAI(card, entry));
   if (local) {
     card.querySelector(".delete-btn").addEventListener("click", () => deleteLocalEntry(entry.id));
   }
   return card;
+}
+
+// ---- "AI에게 물어보기" (마일스톤 1.5.5) ----
+//
+// 카드마다 붙는 이유: 지식노트는 엔트리 단위로 쌓인다는 원래 컨셉과 맞고(decisions.md #26),
+// 응답을 저장할 때 "이 엔트리의 메모"가 명확해서 startEditNote와 같은 저장 경로를 그대로 쓸 수 있다.
+// 저장은 기존 메모를 지우지 않고 뒤에 이어붙인다 — 덮어써서 이전 메모가 날아가는 걸 막기 위함.
+function startAskAI(card, entry) {
+  if (card.querySelector(".ask-ai-box")) return; // 이미 열려 있으면 중복 생성 안 함
+
+  const box = document.createElement("div");
+  box.className = "ask-ai-box";
+  box.innerHTML = `
+    <input type="text" class="ask-ai-input" placeholder="이 항목에 대해 물어보기 (예: 이 곡 배경이 뭐야?)">
+    <div class="ask-ai-actions">
+      <button type="button" class="ask-ai-send">질문</button>
+      <button type="button" class="ask-ai-cancel">닫기</button>
+    </div>
+    <p class="ask-ai-result" hidden></p>
+    <button type="button" class="ask-ai-save" hidden>메모에 저장</button>
+  `;
+  card.appendChild(box);
+
+  const input = box.querySelector(".ask-ai-input");
+  const resultEl = box.querySelector(".ask-ai-result");
+  const saveBtn = box.querySelector(".ask-ai-save");
+  let lastAnswer = "";
+
+  box.querySelector(".ask-ai-send").addEventListener("click", async () => {
+    const question = input.value.trim();
+    if (!question) return;
+    resultEl.hidden = false;
+    resultEl.textContent = "물어보는 중...";
+    saveBtn.hidden = true;
+
+    const context = `${entry.title} — ${formatCredits(entry.credits)}`;
+    const { text, error } = await askClaude(
+      `다음 음악/아티스트에 대한 질문에 짧고 정확하게 답해줘. 대상: ${context}\n질문: ${question}`
+    );
+    if (error) {
+      resultEl.textContent = error;
+      return;
+    }
+    lastAnswer = text;
+    resultEl.textContent = text;
+    saveBtn.hidden = false;
+  });
+
+  saveBtn.addEventListener("click", () => {
+    const merged = (entry.note ? entry.note + "\n\n" : "") + lastAnswer;
+    if (isLocalId(entry.id)) {
+      const idx = localEntries.findIndex(e => e.id === entry.id);
+      if (idx >= 0) {
+        localEntries[idx] = { ...localEntries[idx], note: merged };
+        saveLocalEntries(localEntries);
+      }
+    } else {
+      overrides[entry.id] = { ...(overrides[entry.id] || {}), note: merged };
+      saveOverrides(overrides);
+    }
+    render();
+  });
+
+  box.querySelector(".ask-ai-cancel").addEventListener("click", () => box.remove());
 }
 
 function startEditNote(card, entry) {

@@ -206,3 +206,42 @@ header .sub { margin-top: 0; color: #666; font-size: 0.9rem; }
   font-size: 0.85rem;
   cursor: pointer;
 }
+
+.ask-ai-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 0.6rem 0.7rem;
+  margin-top: 0.5rem;
+}
+
+.ask-ai-input {
+  font: inherit;
+  padding: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.ask-ai-actions { display: flex; gap: 0.5rem; }
+.ask-ai-actions button,
+.ask-ai-save {
+  border: 1px solid #222;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+  align-self: flex-start;
+}
+
+.ask-ai-result {
+  font-size: 0.85rem;
+  color: #333;
+  background: #f7f7f7;
+  border-radius: 4px;
+  padding: 0.5rem 0.6rem;
+  margin: 0;
+  white-space: pre-wrap;
+}

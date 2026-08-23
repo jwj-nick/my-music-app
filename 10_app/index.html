@@ -3,17 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>my-music-app (Phase 1 뼈대)</title>
+<title>my-music-app — Nick의 청음실</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <header>
-    <h1>my-music-app</h1>
-    <p class="sub">Nick 전용 취향 큐레이션 · Phase 1 뼈대 (디자인은 Phase 2에서)</p>
+  <header class="topbar">
+    <div>
+      <h1>my-music-app</h1>
+      <p class="sub">Nick의 청음실 — 취향 큐레이션 · 지식노트 · AI 탐구</p>
+    </div>
+    <button id="theme-toggle" type="button" aria-label="테마 전환">◐</button>
   </header>
 
-  <section class="filters">
-    <div id="intent-filter" class="filter-row"></div>
+  <nav id="intent-filter" class="tabs" aria-label="컬렉션 탭"></nav>
+
+  <section class="recommend reveal">
+    <h2 id="recommend-heading"></h2>
+    <div id="recommend-list" class="entry-list"></div>
+  </section>
+
+  <section class="explore-ai reveal">
+    <h2>탐구 — 무엇을 알고 싶나요?</h2>
+    <div id="ex-type" class="filter-row"></div>
+    <div id="ex-controls" class="ex-controls"></div>
+    <div id="ex-freebox" hidden>
+      <textarea id="ex-free" class="ex-free" placeholder="자유롭게 질문 (형식 제약 없음)"></textarea>
+    </div>
+    <input id="ex-hint" class="ex-hint" placeholder="추가 조건 한 줄 (선택) — 예: JTBC, KBS 유튜브 위주" hidden>
+    <div class="ex-actions">
+      <button id="ex-build" type="button" hidden>쿼리 문장 만들기</button>
+      <button id="ex-send" type="button" hidden>전송</button>
+    </div>
+    <textarea id="ex-preview" class="ex-preview" hidden></textarea>
+    <p id="ex-status" class="ex-status"></p>
+    <div id="ex-results" class="ex-results"></div>
+  </section>
+
+  <section class="tools reveal">
+    <h2>내 컬렉션</h2>
     <div id="tag-filter" class="filter-row"></div>
     <p id="count" class="count"></p>
 
@@ -28,8 +56,8 @@
       <input id="f-performer" placeholder="연주자/아티스트">
       <select id="f-intent">
         <option value="taste">내 취향</option>
-        <option value="explore">교양 탐구</option>
-        <option value="family">가족 탐구</option>
+        <option value="explore">클래식·교양</option>
+        <option value="family">아이돌·가족</option>
       </select>
       <input id="f-tags" placeholder="태그 (쉼표로 구분)">
       <textarea id="f-note" placeholder="메모"></textarea>
@@ -51,29 +79,7 @@
     </div>
   </section>
 
-  <section class="recommend">
-    <h2 id="recommend-heading"></h2>
-    <div id="recommend-list" class="entry-list"></div>
-  </section>
-
-  <section class="explore-ai">
-    <h2>탐구 — 무엇을 알고 싶나요?</h2>
-    <div id="ex-type" class="filter-row"></div>
-    <div id="ex-controls" class="ex-controls"></div>
-    <div id="ex-freebox" hidden>
-      <textarea id="ex-free" class="ex-free" placeholder="자유롭게 질문 (형식 제약 없음)"></textarea>
-    </div>
-    <input id="ex-hint" class="ex-hint" placeholder="추가 조건 한 줄 (선택) — 예: JTBC, KBS 유튜브 위주" hidden>
-    <div class="ex-actions">
-      <button id="ex-build" type="button" hidden>쿼리 문장 만들기</button>
-      <button id="ex-send" type="button" hidden>전송</button>
-    </div>
-    <textarea id="ex-preview" class="ex-preview" hidden></textarea>
-    <p id="ex-status" class="ex-status"></p>
-    <div id="ex-results" class="ex-results"></div>
-  </section>
-
-  <main id="entry-list" class="entry-list"></main>
+  <main id="entry-list" class="entry-list reveal"></main>
 
   <script src="app.js"></script>
 </body>

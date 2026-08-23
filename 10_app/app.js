@@ -26,9 +26,29 @@ let logs = [];            // 청취 로그 — { entryId, date }[] (localStorage
 let activeIntent = "all";
 let activeTags = new Set();
 
-const INTENT_LABELS = { taste: "내 취향", explore: "교양 탐구", family: "가족 탐구" };
+const INTENT_LABELS = { taste: "내 취향", explore: "클래식·교양", family: "아이돌·가족" }; // Q06: 탭 라벨 (Phase 2)
+const LS_THEME = "mma_theme";
+
+// ---- 테마 (Phase 2) — 순환: 시스템 → 다크 → 라이트 → 시스템 ----
+// 시스템 상태에서는 data-theme 스탬프 없이 prefers-color-scheme 미디어쿼리만 동작한다.
+function initTheme() {
+  const saved = localStorage.getItem(LS_THEME);
+  if (saved) document.documentElement.dataset.theme = saved;
+  document.getElementById("theme-toggle").addEventListener("click", () => {
+    const cur = document.documentElement.dataset.theme || "";
+    const next = cur === "" ? "dark" : cur === "dark" ? "light" : "";
+    if (next) {
+      document.documentElement.dataset.theme = next;
+      localStorage.setItem(LS_THEME, next);
+    } else {
+      delete document.documentElement.dataset.theme;
+      localStorage.removeItem(LS_THEME);
+    }
+  });
+}
 
 async function init() {
+  initTheme();
   const res = await fetch("data/seed.json");
   allEntries = await res.json();
   localEntries = loadLocalEntries();
@@ -370,11 +390,23 @@ function isLocalId(id) {
   return id.startsWith("local-");
 }
 
+// 아트 타일 (Phase 2) — 앨범아트 데이터가 없으므로 id 해시로 결정적 그라디언트 생성.
+// 같은 엔트리는 항상 같은 색 (해시 기반이라 새로고침해도 안 바뀜).
+function artTile(entry) {
+  let h = 0;
+  for (const ch of entry.id) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  const h2 = (h + 40) % 360;
+  const initial = (entry.title || "?").replace(/[\s"'(\[]/g, "").charAt(0) || "?";
+  return `<div class="art" aria-hidden="true" style="background:linear-gradient(135deg, hsl(${h},38%,46%), hsl(${h2},45%,30%))">${escapeHtml(initial)}</div>`;
+}
+
 function renderCard(entry) {
   const card = document.createElement("div");
   card.className = "card";
   const local = isLocalId(entry.id);
   card.innerHTML = `
+    ${artTile(entry)}
+    <div class="card-body">
     <div class="card-top">
       <span class="intent-tag intent-${entry.intent}">${INTENT_LABELS[entry.intent] || entry.intent}</span>
       <h3>${escapeHtml(entry.title)}</h3>
@@ -391,6 +423,7 @@ function renderCard(entry) {
       <button class="edit-note-btn" type="button">메모 편집</button>
       <button class="ask-ai-btn" type="button">AI에게 물어보기</button>
       ${local ? '<button class="delete-btn" type="button">삭제</button>' : ""}
+    </div>
     </div>
   `;
   card.querySelector(".listen-btn").addEventListener("click", () => logListen(entry.id));

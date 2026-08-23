@@ -233,6 +233,36 @@ function recommend(pool, queryTags = [], opts = {}) {
   return scored.slice(0, limit).map(s => s.entry);
 }
 
+// ---- 취향 프로파일 (마일스톤 1.5.6) ----
+//
+// 컬렉션 전체를 AI 프롬프트에 넣을 압축 텍스트로 증류한다.
+// recommend()와 같은 이유로 순수 함수 — entries/logs를 인자로 받고 localStorage/DOM을 안 본다.
+// 이 출력이 ②발견/③트렌드 프롬프트의 "자동 컨텍스트"가 된다 (decisions.md #29) —
+// Nick이 매번 자기 취향을 타이핑하지 않아도 되는 것이 이 함수의 존재 이유.
+function tasteProfile(entries, logs = []) {
+  const byIntent = { taste: [], explore: [], family: [] };
+  entries.forEach(e => { if (byIntent[e.intent]) byIntent[e.intent].push(e); });
+  const name = e => e.credits.performer || e.title;
+
+  // 최근 청취: 로그 뒤에서부터 중복 없이 최대 5개
+  const idMap = new Map(entries.map(e => [e.id, e]));
+  const recentIds = [];
+  for (let i = logs.length - 1; i >= 0 && recentIds.length < 5; i--) {
+    if (!recentIds.includes(logs[i].entryId)) recentIds.push(logs[i].entryId);
+  }
+  const recent = recentIds.map(id => idMap.get(id)).filter(Boolean).map(e => e.title);
+
+  const allTags = [...new Set(entries.flatMap(e => e.tags))];
+
+  const lines = [];
+  if (byIntent.taste.length) lines.push("좋아하는 아티스트: " + byIntent.taste.map(name).join(", "));
+  if (byIntent.explore.length) lines.push("탐구 중인 음반(클래식 위주): " + byIntent.explore.map(e => e.title).join(", "));
+  if (byIntent.family.length) lines.push("가족(딸) 취향: " + byIntent.family.map(name).join(", "));
+  if (allTags.length) lines.push("관심 태그: " + allTags.join(", "));
+  if (recent.length) lines.push("최근 들은 것: " + recent.join(", "));
+  return lines.join("\n");
+}
+
 function escapeHtml(str) {
   const div = document.createElement("div");
   div.textContent = str;
@@ -524,5 +554,9 @@ if (typeof document !== "undefined") {
 // Node(test_recommend.js)에서 순수 함수만 불러다 쓰기 위한 내보내기.
 // 브라우저에서 <script src>로 로드될 땐 module이 없어서 그냥 건너뛴다 — 빌드 도구 없이도 동작.
 if (typeof module !== "undefined" && module.exports) {
-  module.exports = { recommend, scoreEntry: (entry, tags) => tags.filter(t => entry.tags.includes(t)).length };
+  module.exports = {
+    recommend,
+    scoreEntry: (entry, tags) => tags.filter(t => entry.tags.includes(t)).length,
+    tasteProfile
+  };
 }

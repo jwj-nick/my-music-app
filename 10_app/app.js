@@ -440,13 +440,24 @@ function renderCard(entry) {
 // 카드마다 붙는 이유: 지식노트는 엔트리 단위로 쌓인다는 원래 컨셉과 맞고(decisions.md #26),
 // 응답을 저장할 때 "이 엔트리의 메모"가 명확해서 startEditNote와 같은 저장 경로를 그대로 쓸 수 있다.
 // 저장은 기존 메모를 지우지 않고 뒤에 이어붙인다 — 덮어써서 이전 메모가 날아가는 걸 막기 위함.
+// T2 미리 정의 질문 — 쿼리 빌더 철학("선택이 문장을 만든다")을 카드 레벨에도 적용.
+// 칩을 누르면 입력창에 문장이 채워지고, 사용자가 다듬어서 보낼 수 있다.
+const ASK_PRESETS = [
+  "배경과 히스토리를 알려줘",
+  "수상 이력과 평단 평가는?",
+  "이걸 좋아하면 다음에 뭘 들으면 좋아?",
+  "최근 활동/발매 소식은?"
+];
+
 function startAskAI(card, entry) {
   if (card.querySelector(".ask-ai-box")) return; // 이미 열려 있으면 중복 생성 안 함
 
   const box = document.createElement("div");
   box.className = "ask-ai-box";
   box.innerHTML = `
-    <input type="text" class="ask-ai-input" placeholder="이 항목에 대해 물어보기 (예: 이 곡 배경이 뭐야?)">
+    <div class="ask-ai-presets">${ASK_PRESETS.map(p =>
+      `<button type="button" data-preset="${escapeHtml(p)}">${escapeHtml(p)}</button>`).join("")}</div>
+    <input type="text" class="ask-ai-input" placeholder="직접 입력하거나 위에서 선택">
     <div class="ask-ai-actions">
       <button type="button" class="ask-ai-send">질문</button>
       <button type="button" class="ask-ai-cancel">닫기</button>
@@ -457,6 +468,9 @@ function startAskAI(card, entry) {
   card.appendChild(box);
 
   const input = box.querySelector(".ask-ai-input");
+  box.querySelectorAll(".ask-ai-presets button").forEach(btn => {
+    btn.addEventListener("click", () => { input.value = btn.dataset.preset; input.focus(); });
+  });
   const resultEl = box.querySelector(".ask-ai-result");
   const saveBtn = box.querySelector(".ask-ai-save");
   let lastAnswer = "";

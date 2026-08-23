@@ -27,3 +27,5 @@
 | 21 | 2026-08-23 | Phase 1.5 아키텍처 = 서버리스 백엔드 없이 브라우저가 Claude API를 직접 호출, API 키는 localStorage에만 저장 | Anthropic이 브라우저 직접 호출을 공식 지원(`dangerouslyAllowBrowser`, CORS). repo가 이미 public이어도 키를 git에 안 넣으면 안전 확보 가능. Vercel/Cloudflare 같은 새 플랫폼 계정 관리 부담도 회피 | Vercel/Cloudflare 서버리스 함수로 키를 프록시 |
 | 22 | 2026-08-23 | repo는 private 전환 가능함을 확인했으나 기존 결정(#1) 유지 — public으로 계속 | 키 보호는 repo 공개 여부와 무관한 별도 축("git에 키를 절대 커밋 안 함")으로 확보되므로, public 유지 이유(학습 공개 패턴)를 바꿀 필요가 없음 | repo를 private으로 전환 |
 | 23 | 2026-08-23 | Vercel MCP 인증 플로우 중단 — 당장 불필요 | #21로 서버리스 백엔드 자체가 불필요해짐. 나중에 다른 앱에서 Vercel이 필요해지면 그때 재개 | 인증을 마무리해서 미리 계정 연결 |
+| 24 | 2026-08-23 | Workload Identity Federation(WIF)은 검토 후 미채택 — 정적 API 키 + spend limit 유지 | WIF는 GitHub Actions·AWS·GCP·Entra ID·Kubernetes처럼 이미 OIDC로 신원이 있는 "워크로드"(자동화 인프라)를 위한 기능이다. 브라우저에서 도는 개인 정적 사이트는 그런 워크로드 정체성이 없어 federation을 걸 IdP 자체가 없다. 쓰려면 #21에서 배제한 종류의 백엔드/클라우드 인프라를 다시 세워야 해서 목적에 안 맞음 | Anthropic Console의 Workload Identity Federation으로 정적 키 없이 인증 |
+| 25 | 2026-08-23 | Claude 모델 기본값 = `claude-haiku-4-5-20251001` | 개인 앱 운영비 0원 원칙(CLAUDE.md 미션)에 맞춰 가장 저렴한 모델을 기본으로. 답변 품질이 아쉬우면 `CLAUDE_MODEL` 상수 하나만 바꾸면 됨 | 기본값을 claude-sonnet-5로 |

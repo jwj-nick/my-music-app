@@ -32,7 +32,12 @@
 | repo 공개 여부와 "APK만 개인적으로 씀"은 다른 축 | APK 배포를 비공개로 해도 소스(repo)가 public이면 소스에 박힌 키는 여전히 노출된다 — 진짜 안전장치는 "키를 git에 아예 안 넣는 것" | repo가 public인 채로 키를 안전하게 쓰려면 키가 어디 있어야 하는가? | ✅ Nick이 직접 방향 제안 → 대화로 로컬저장안 확정 |
 | 브라우저가 Claude API를 직접 호출하는 방법이 공식 지원됨 | Anthropic이 CORS를 지원해서 `dangerouslyAllowBrowser` 설정으로 서버 없이 브라우저→API 직접 호출이 가능하다("dangerously"는 키가 그 브라우저 사용자에게 노출된다는 경고) | 이 방식에서 노출 범위는 누구까지인가? | ✅ 대화로 확인 — repo=안전, Pages 방문자=본인 키 없으면 무관, 유일한 위험은 Nick 본인 기기 접근 |
 
-**다음(1.5.4 구현 시점)에 설명할 것:** Claude API 요청 포맷(`messages` 배열, `model` 지정, `anthropic-version` 헤더) — 아직 미설명.
+1.5.4(`askClaude()` 구현)에서 추가로 나온 개념:
+
+| 개념 | 설명 | 체크 질문 | 확인 |
+|---|---|---|---|
+| Claude API 요청 포맷 | `messages` 배열(역할+내용), `model`, `anthropic-version`, 그리고 브라우저 직접호출을 허용시키는 `anthropic-dangerous-direct-browser-access` 헤더가 필요하다 | `askClaude()` 코드를 보고 각 헤더가 왜 필요한지 설명할 수 있는가 | ⏳ 다음 확인 때 |
+| Workload Identity Federation(WIF)이 우리 경우에 안 맞는 이유 | WIF는 GitHub Actions·AWS·GCP·Entra ID·Kubernetes처럼 이미 신원이 있는 자동화 인프라(워크로드)를 위한 기능 — 브라우저에서 도는 개인 정적 사이트는 federation을 걸 대상(IdP)이 애초에 없다 | 우리 앱이 WIF를 못 쓰는 근본 이유는? | ✅ 2026-08-23 리서치로 확인, decisions.md #24 |
 
 ## Phase 2, 3 — 착수 시점에 채운다
 디자인(Phase 2)과 APK 패키징(Phase 3)의 학습 체크포인트는 각 Phase 착수 세션에서 구체화한다. 지금 미리 정하면 실제 상황과 어긋날 가능성이 크다.

@@ -14,6 +14,8 @@ const LS_ENTRIES = "mma_local_entries";
 const LS_OVERRIDES = "mma_overrides";
 const LS_LOGS = "mma_logs";
 const LS_APIKEY = "mma_api_key"; // Claude API 키 — 절대 seed.json/git에 안 들어감, 이 브라우저에만 저장 (decisions.md #21)
+const CLAUDE_MODEL = "claude-haiku-4-5-20251001"; // 개인 앱 운영비 0원 원칙(decisions.md #25) — 품질이 아쉬우면 이 상수만 교체
+const CLAUDE_MAX_TOKENS = 512;
 
 let allEntries = [];      // seed.json에서 읽은 고정 데이터
 let localEntries = [];    // 사용자가 앱에서 추가한 항목 (localStorage)
@@ -69,6 +71,48 @@ function saveApiKey(key) {
 }
 function deleteApiKey() {
   localStorage.removeItem(LS_APIKEY);
+}
+
+// ---- Claude API 직접 호출 (마일스톤 1.5.4) ----
+//
+// 백엔드 없이 브라우저가 Anthropic API를 직접 호출한다 (decisions.md #21).
+// `anthropic-dangerous-direct-browser-access` 헤더가 있어야 브라우저의 CORS 요청을
+// Anthropic이 받아준다 — 이름의 "dangerously"는 이 키가 이 브라우저 사용자에게 노출된다는
+// 공식 경고다. 우리는 이미 이 키를 Nick 본인만 입력/저장하는 구조라 그 경고를 감수하는 범위 안이다.
+//
+// alert/confirm을 안 쓴다는 원칙대로, 실패도 예외를 던지지 않고 { error } 형태로 돌려준다 —
+// 호출하는 쪽(1.5.5 UI)이 화면에 인라인으로 표시하면 된다.
+async function askClaude(prompt) {
+  const key = loadApiKey();
+  if (!key) {
+    return { error: "설정에서 API 키를 먼저 입력해주세요." };
+  }
+  let res;
+  try {
+    res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+        "anthropic-dangerous-direct-browser-access": "true"
+      },
+      body: JSON.stringify({
+        model: CLAUDE_MODEL,
+        max_tokens: CLAUDE_MAX_TOKENS,
+        messages: [{ role: "user", content: prompt }]
+      })
+    });
+  } catch (err) {
+    return { error: "네트워크 오류: " + err.message };
+  }
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => "");
+    return { error: `API 오류 (${res.status}): ${bodyText.slice(0, 200)}` };
+  }
+  const data = await res.json();
+  const text = (data.content || []).map(block => block.text || "").join("");
+  return { text };
 }
 
 // ---- 청취 로그 (마일스톤 1.7) ----

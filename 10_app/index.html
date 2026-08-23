@@ -56,6 +56,23 @@
     <div id="recommend-list" class="entry-list"></div>
   </section>
 
+  <section class="explore-ai">
+    <h2>탐구 — 무엇을 알고 싶나요?</h2>
+    <div id="ex-type" class="filter-row"></div>
+    <div id="ex-controls" class="ex-controls"></div>
+    <div id="ex-freebox" hidden>
+      <textarea id="ex-free" class="ex-free" placeholder="자유롭게 질문 (형식 제약 없음)"></textarea>
+    </div>
+    <input id="ex-hint" class="ex-hint" placeholder="추가 조건 한 줄 (선택) — 예: JTBC, KBS 유튜브 위주" hidden>
+    <div class="ex-actions">
+      <button id="ex-build" type="button" hidden>쿼리 문장 만들기</button>
+      <button id="ex-send" type="button" hidden>전송</button>
+    </div>
+    <textarea id="ex-preview" class="ex-preview" hidden></textarea>
+    <p id="ex-status" class="ex-status"></p>
+    <div id="ex-results" class="ex-results"></div>
+  </section>
+
   <main id="entry-list" class="entry-list"></main>
 
   <script src="app.js"></script>

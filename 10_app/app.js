@@ -37,6 +37,7 @@ async function init() {
   initAddForm();
   initExport();
   initSettings();
+  initExplore();
   renderFilters();
   render();
 }
@@ -233,6 +234,102 @@ function recommend(pool, queryTags = [], opts = {}) {
   return scored.slice(0, limit).map(s => s.entry);
 }
 
+// ---- 쿼리 빌더 (마일스톤 1.5.7) ----
+//
+// "사용자는 선택하고, 쿼리 문장은 앱이 조립한다" (decisions.md #29~31).
+// 답 4유형(T1 links / T2 knowledge / T3 discover / T4 brief)마다 템플릿과 출력 계약이 다르다.
+// 순수 함수 원칙: 날짜(today)도 호출부가 넘긴다 — recommend()·tasteProfile()과 같은 이유.
+//
+// 품질 장치:
+//   - "최근 1년" 같은 상대 기간은 절대 날짜로 변환해 넣는다 (모델이 컷오프 핑계를 못 대게)
+//   - 출력 형식을 `필드 | 필드 | ...` 한 줄 계약으로 못박아 파싱 가능하게
+//   - "확인된 것만, 추측 금지, 출처 필수" 명시
+
+function shiftYears(dateStr, years) {
+  // "YYYY-MM-DD"에서 연도만 조정 — Date 객체 없이 문자열 연산 (순수)
+  const y = parseInt(dateStr.slice(0, 4), 10) + years;
+  return String(y) + dateStr.slice(4);
+}
+
+function shiftMonths(dateStr, delta) {
+  // 월 단위 이동 — 연 경계 처리. Date 객체 없이 문자열 연산 (순수)
+  let y = parseInt(dateStr.slice(0, 4), 10);
+  let m = parseInt(dateStr.slice(5, 7), 10) + delta;
+  while (m < 1) { m += 12; y -= 1; }
+  while (m > 12) { m -= 12; y += 1; }
+  return `${y}-${String(m).padStart(2, "0")}${dateStr.slice(7)}`;
+}
+
+function periodClause(period, today) {
+  if (period === "1y") return `기간: ${shiftYears(today, -1)} ~ ${today}.`;
+  if (period === "3y") return `기간: ${shiftYears(today, -3)} ~ ${today}.`;
+  if (period === "1m") return `기간: ${shiftMonths(today, -1)} ~ ${today}.`;
+  if (period === "3m") return `기간: ${shiftMonths(today, -3)} ~ ${today}.`;
+  return ""; // "any" — 기간 제한 없음
+}
+
+function buildQuery(sel) {
+  const hint = sel.hint ? `\n추가 조건: ${sel.hint}` : "";
+  const today = sel.today;
+
+  if (sel.type === "links") { // T1 플레이 링크
+    return [
+      `"${sel.target}"의 ${sel.form}을(를) 웹에서 검색해줘. ${periodClause(sel.period, today)} 최대 ${sel.count}개.`,
+      `각 항목을 정확히 이 형식의 한 줄로 써줘:`,
+      `곡명 | 아티스트 | 채널/방송 | 날짜 | URL`,
+      `확인된 것만 쓰고 추측 금지. 실제 URL 필수. 못 찾으면 찾은 만큼만 써줘.`
+    ].join("\n") + hint;
+  }
+
+  if (sel.type === "knowledge") { // T2 지식 (카드에서 진입)
+    return [
+      `다음 음악/아티스트에 대해 알려줘: ${sel.target}.`,
+      `${sel.question || "배경, 특징, 알아둘 맥락"}을 지식노트에 쌓을 수 있게 간결하게 정리해줘.`,
+      `최신 정보가 필요하면 웹 검색을 쓰고 출처 링크를 남겨줘. 추측 금지.`
+    ].join("\n") + hint;
+  }
+
+  if (sel.type === "discover") { // T3 추천 후보
+    return [
+      `새로운 음악을 추천해줘. 방향: ${sel.target}.`,
+      `내 취향 프로파일:`,
+      sel.profile,
+      `이미 갖고 있는 것(추천 금지): ${(sel.excludeTitles || []).join(", ")}`,
+      `정확히 ${sel.count}개, 각 항목을 이 형식의 한 줄로 써줘:`,
+      `제목 | 아티스트 | 추천 이유(내 취향과의 연결) | 태그(쉼표 구분)`,
+      `실존하는 음악만. 확실하지 않으면 웹 검색으로 확인해줘.`
+    ].join("\n") + hint;
+  }
+
+  if (sel.type === "brief") { // T4 요약 브리핑
+    return [
+      `${sel.region} ${sel.scope} 음악 씬에서 요즘 화제인 것들을 웹에서 검색해 브리핑해줘. ${periodClause(sel.period, today)}`,
+      `불릿 ${sel.count}개 이내로, 각 불릿 끝에 출처 링크를 붙여줘. 확인된 것만, 추측 금지.`
+    ].join("\n") + hint;
+  }
+
+  return "";
+}
+
+// T1/T3 응답 파싱 — `a | b | c` 줄만 골라 필드로 쪼갠다. 형식이 어긋난 줄은 조용히 건너뜀 (방어적).
+function parsePipeLines(text, fieldCount) {
+  return text.split("\n")
+    .map(line => line.trim().replace(/^[-*\d.)\s]+/, "")) // 불릿/번호 접두 제거
+    .filter(line => line.split("|").length === fieldCount)
+    .map(line => line.split("|").map(s => s.trim()));
+}
+
+function parseLinkResults(text) { // T1: 곡명|아티스트|채널|날짜|URL
+  return parsePipeLines(text, 5)
+    .filter(f => /^https?:\/\//.test(f[4]))
+    .map(f => ({ title: f[0], artist: f[1], channel: f[2], date: f[3], url: f[4] }));
+}
+
+function parseDiscoverResults(text) { // T3: 제목|아티스트|이유|태그
+  return parsePipeLines(text, 4)
+    .map(f => ({ title: f[0], artist: f[1], reason: f[2], tags: f[3].split(",").map(t => t.trim()).filter(Boolean) }));
+}
+
 // ---- 취향 프로파일 (마일스톤 1.5.6) ----
 //
 // 컬렉션 전체를 AI 프롬프트에 넣을 압축 텍스트로 증류한다.
@@ -285,6 +382,8 @@ function renderCard(entry) {
     <p class="credits">${escapeHtml(formatCredits(entry.credits))}</p>
     <div class="tags">${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>
     <p class="note" data-note>${entry.note ? escapeHtml(entry.note) : '<span class="muted">메모 없음</span>'}</p>
+    ${(entry.links || []).length ? `<p class="entry-links">${entry.links.map(l =>
+      `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">▶ ${escapeHtml(l.label || "링크")}</a>`).join(" ")}</p>` : ""}
     ${listenSummary(entry.id) ? `<p class="listen-summary">${escapeHtml(listenSummary(entry.id))}</p>` : ""}
     <div class="card-actions">
       <a class="play-btn" href="${spotifyLink(entry)}" target="_blank" rel="noopener">Spotify에서 찾기</a>
@@ -336,11 +435,14 @@ function startAskAI(card, entry) {
     resultEl.textContent = "물어보는 중...";
     saveBtn.hidden = true;
 
-    const context = `${entry.title} — ${formatCredits(entry.credits)}`;
-    const { text, error } = await askClaude(
-      `다음 음악/아티스트에 대한 질문에 답해줘. 최신 정보나 실제 링크가 필요한 질문이면 웹 검색을 써서 ` +
-      `정확한 정보로 답해. 대상: ${context}\n질문: ${question}`
-    );
+    // T2(지식) — 쿼리 빌더 템플릿 경유 (마일스톤 1.5.8에서 전환)
+    const { text, error } = await askClaude(buildQuery({
+      type: "knowledge",
+      target: `${entry.title} — ${formatCredits(entry.credits)}`,
+      question,
+      hint: "",
+      today: todayStr()
+    }));
     if (error) {
       resultEl.textContent = error;
       return;
@@ -512,6 +614,291 @@ function initExport() {
   });
 }
 
+// ---- 탐구 UI — 쿼리 빌더 (마일스톤 1.5.8) ----
+//
+// Step1 답 유형 → Step2~3 유형별 선택(대상은 내 데이터에서 자동 생성) → Step4 자유 한 줄
+// → buildQuery()로 문장 조립 → 미리보기(수정 가능) → 전송 → 유형별 파싱 → 행선지.
+// T1/T3 결과는 항목별 "+추가"로 골라서만 엔트리화 (decisions.md #32).
+
+const EX_TYPES = [
+  { key: "links", label: "들을·볼 것 찾기" },
+  { key: "discover", label: "새 음악 추천" },
+  { key: "brief", label: "요즘 소식 브리핑" },
+  { key: "free", label: "자유 질문" }
+];
+const EX_FORMS = [ // T1 형태 — value가 태그로도 쓰임
+  { value: "방송커버", query: "방송 커버 영상" },
+  { value: "라이브", query: "라이브 무대 영상" },
+  { value: "뮤비", query: "뮤직비디오" },
+  { value: "발매", query: "정규/싱글 발매곡" }
+];
+let exType = null;
+
+function exSelect(id, label, options) {
+  // options: [{value, label}]
+  return `<label class="ex-field">${label}
+    <select id="${id}">${options.map(o => `<option value="${escapeHtml(o.value)}">${escapeHtml(o.label)}</option>`).join("")}</select>
+  </label>`;
+}
+
+function performerNames() {
+  const names = mergedEntries().map(e => e.credits.performer || e.title);
+  return [...new Set(names)];
+}
+
+function renderExploreControls() {
+  const box = document.getElementById("ex-controls");
+  const freebox = document.getElementById("ex-freebox");
+  const hint = document.getElementById("ex-hint");
+  const buildBtn = document.getElementById("ex-build");
+  const sendBtn = document.getElementById("ex-send");
+  const preview = document.getElementById("ex-preview");
+
+  preview.hidden = true;
+  sendBtn.hidden = true;
+  document.getElementById("ex-results").innerHTML = "";
+  document.getElementById("ex-status").textContent = "";
+
+  if (!exType) { box.innerHTML = ""; freebox.hidden = true; hint.hidden = true; buildBtn.hidden = true; return; }
+
+  if (exType === "free") {
+    box.innerHTML = "";
+    freebox.hidden = false;
+    hint.hidden = true;
+    buildBtn.hidden = true;
+    sendBtn.hidden = false;
+    return;
+  }
+
+  freebox.hidden = true;
+  hint.hidden = false;
+  buildBtn.hidden = false;
+
+  if (exType === "links") {
+    const artists = performerNames().map(n => ({ value: n, label: n }));
+    box.innerHTML =
+      exSelect("ex-target", "대상", [...artists, { value: "__custom__", label: "직접 입력..." }]) +
+      `<input id="ex-target-custom" class="ex-hint" placeholder="아티스트/그룹 이름" hidden>` +
+      exSelect("ex-form", "형태", EX_FORMS.map(f => ({ value: f.value, label: f.query }))) +
+      exSelect("ex-period", "기간", [
+        { value: "1y", label: "최근 1년" }, { value: "3y", label: "최근 3년" }, { value: "any", label: "기간 무관" }
+      ]) +
+      exSelect("ex-count", "개수", [
+        { value: "5", label: "5개" }, { value: "10", label: "10개" }, { value: "3", label: "3개" }
+      ]);
+    document.getElementById("ex-target").addEventListener("change", e => {
+      document.getElementById("ex-target-custom").hidden = e.target.value !== "__custom__";
+    });
+  } else if (exType === "discover") {
+    const tasteArtists = mergedEntries().filter(e => e.intent === "taste").map(e => e.credits.performer || e.title);
+    const directions = [
+      { value: "내 취향 전체 기반", label: "전체 취향 기반" },
+      ...[...new Set(tasteArtists)].map(n => ({ value: `"${n}" 계열 (비슷한 감성/보컬)`, label: `${n} 계열` })),
+      { value: "클래식 (2016년 이후 발매, 유명 연주자/오케스트라, 한국 음악가 선호)", label: "클래식 탐구" },
+      { value: "딸이 좋아하는 아이돌 주변의 요즘 그룹", label: "딸 취향 주변" }
+    ];
+    box.innerHTML =
+      exSelect("ex-target", "방향", directions) +
+      exSelect("ex-count", "개수", [{ value: "3", label: "3개" }, { value: "5", label: "5개" }]);
+  } else if (exType === "brief") {
+    box.innerHTML =
+      exSelect("ex-region", "지역", [
+        { value: "한국", label: "한국" }, { value: "미국", label: "미국" }, { value: "세계", label: "세계" }
+      ]) +
+      exSelect("ex-scope", "범위", [
+        { value: "K-pop", label: "K-pop" }, { value: "클래식", label: "클래식" }, { value: "전체", label: "전체" }
+      ]) +
+      exSelect("ex-period", "기간", [
+        { value: "1m", label: "최근 1개월" }, { value: "3m", label: "최근 3개월" }, { value: "1y", label: "최근 1년" }
+      ]) +
+      exSelect("ex-count", "개수", [{ value: "5", label: "5개" }, { value: "3", label: "3개" }]);
+  }
+}
+
+function exBuildSelections() {
+  const hint = document.getElementById("ex-hint").value.trim();
+  const today = todayStr();
+  if (exType === "links") {
+    let target = document.getElementById("ex-target").value;
+    if (target === "__custom__") target = document.getElementById("ex-target-custom").value.trim();
+    const formValue = document.getElementById("ex-form").value;
+    const form = EX_FORMS.find(f => f.value === formValue);
+    return {
+      type: "links", target, form: form.query, formTag: form.value,
+      period: document.getElementById("ex-period").value,
+      count: parseInt(document.getElementById("ex-count").value, 10),
+      hint, today
+    };
+  }
+  if (exType === "discover") {
+    const merged = mergedEntries();
+    return {
+      type: "discover",
+      target: document.getElementById("ex-target").value,
+      profile: tasteProfile(merged, logs),
+      excludeTitles: merged.map(e => e.title),
+      count: parseInt(document.getElementById("ex-count").value, 10),
+      hint, today
+    };
+  }
+  if (exType === "brief") {
+    return {
+      type: "brief",
+      region: document.getElementById("ex-region").value,
+      scope: document.getElementById("ex-scope").value,
+      period: document.getElementById("ex-period").value,
+      count: parseInt(document.getElementById("ex-count").value, 10),
+      hint, today
+    };
+  }
+  return null;
+}
+
+function linkify(text) {
+  // escape 후 URL만 앵커로 — 순서 중요 (먼저 escape해야 주입 안전)
+  return escapeHtml(text).replace(/(https?:\/\/[^\s<]+)/g,
+    '<a href="$1" target="_blank" rel="noopener">$1</a>');
+}
+
+function exAddLinkEntry(item, formTag) {
+  const merged = mergedEntries();
+  const existing = merged.find(e => (e.credits.performer || e.title) === item.artist);
+  const entry = {
+    id: "local-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+    type: "track",
+    title: item.title,
+    credits: { performer: item.artist },
+    spotifyUrl: null,
+    links: [{ label: `${item.channel} ${item.date}`.trim(), url: item.url }],
+    tags: formTag ? [formTag] : [],
+    intent: existing ? existing.intent : "taste",
+    note: "",
+    addedAt: todayStr()
+  };
+  localEntries.push(entry);
+  saveLocalEntries(localEntries);
+  renderFilters();
+  render();
+}
+
+function exAddDiscoverEntry(item) {
+  const entry = {
+    id: "local-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+    type: "track",
+    title: item.title,
+    credits: { performer: item.artist },
+    spotifyUrl: null,
+    tags: item.tags,
+    intent: "explore",
+    note: item.reason,
+    addedAt: todayStr()
+  };
+  localEntries.push(entry);
+  saveLocalEntries(localEntries);
+  renderFilters();
+  render();
+}
+
+function renderExploreResults(text) {
+  const box = document.getElementById("ex-results");
+  box.innerHTML = "";
+
+  if (exType === "links") {
+    const items = parseLinkResults(text);
+    const formTag = document.getElementById("ex-form").value;
+    if (items.length === 0) {
+      box.innerHTML = `<p class="ex-raw">${linkify(text)}</p>`;
+      return;
+    }
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "ex-item";
+      row.innerHTML = `
+        <div class="ex-item-main">
+          <b>${escapeHtml(item.title)}</b> — ${escapeHtml(item.artist)}
+          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}</span>
+        </div>
+        <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">열기</a>
+        <button type="button" class="ex-add">+추가</button>`;
+      row.querySelector(".ex-add").addEventListener("click", () => {
+        exAddLinkEntry(item, formTag);
+        row.querySelector(".ex-add").textContent = "추가됨";
+        row.querySelector(".ex-add").disabled = true;
+      });
+      box.appendChild(row);
+    });
+  } else if (exType === "discover") {
+    const items = parseDiscoverResults(text);
+    if (items.length === 0) {
+      box.innerHTML = `<p class="ex-raw">${linkify(text)}</p>`;
+      return;
+    }
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "ex-item";
+      row.innerHTML = `
+        <div class="ex-item-main">
+          <b>${escapeHtml(item.title)}</b> — ${escapeHtml(item.artist)}
+          <span class="ex-item-sub">${escapeHtml(item.reason)}</span>
+          <span class="ex-item-sub">${item.tags.map(t => escapeHtml(t)).join(" · ")}</span>
+        </div>
+        <button type="button" class="ex-add">+추가</button>`;
+      row.querySelector(".ex-add").addEventListener("click", () => {
+        exAddDiscoverEntry(item);
+        row.querySelector(".ex-add").textContent = "추가됨";
+        row.querySelector(".ex-add").disabled = true;
+      });
+      box.appendChild(row);
+    });
+  } else {
+    // brief / free — 읽을거리로 표시 (링크는 클릭 가능)
+    box.innerHTML = `<p class="ex-raw">${linkify(text)}</p>`;
+  }
+}
+
+function initExplore() {
+  const typeBar = document.getElementById("ex-type");
+  typeBar.innerHTML = EX_TYPES
+    .map(t => `<button data-extype="${t.key}">${t.label}</button>`)
+    .join("");
+  typeBar.querySelectorAll("button").forEach(btn => {
+    btn.addEventListener("click", () => {
+      exType = btn.dataset.extype;
+      typeBar.querySelectorAll("button").forEach(b => b.classList.toggle("active", b === btn));
+      renderExploreControls();
+    });
+  });
+
+  const preview = document.getElementById("ex-preview");
+  const statusEl = document.getElementById("ex-status");
+  const sendBtn = document.getElementById("ex-send");
+
+  document.getElementById("ex-build").addEventListener("click", () => {
+    const sel = exBuildSelections();
+    if (!sel || (sel.type === "links" && !sel.target)) {
+      statusEl.textContent = "대상을 선택하거나 입력해주세요.";
+      return;
+    }
+    statusEl.textContent = "";
+    preview.value = buildQuery(sel);
+    preview.hidden = false;
+    sendBtn.hidden = false;
+  });
+
+  sendBtn.addEventListener("click", async () => {
+    const prompt = exType === "free"
+      ? document.getElementById("ex-free").value.trim()
+      : preview.value.trim();
+    if (!prompt) return;
+    statusEl.textContent = "물어보는 중...";
+    document.getElementById("ex-results").innerHTML = "";
+    const { text, error } = await askClaude(prompt);
+    if (error) { statusEl.textContent = error; return; }
+    statusEl.textContent = "";
+    renderExploreResults(text);
+  });
+}
+
 // ---- 설정 (API 키 입력/저장/삭제, 마일스톤 1.5.2) ----
 
 function initSettings() {
@@ -557,6 +944,7 @@ if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     recommend,
     scoreEntry: (entry, tags) => tags.filter(t => entry.tags.includes(t)).length,
-    tasteProfile
+    tasteProfile,
+    buildQuery, shiftYears, parseLinkResults, parseDiscoverResults
   };
 }

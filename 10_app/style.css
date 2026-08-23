@@ -245,3 +245,68 @@ header .sub { margin-top: 0; color: #666; font-size: 0.9rem; }
   margin: 0;
   white-space: pre-wrap;
 }
+
+/* ---- 탐구(쿼리 빌더) 섹션 ---- */
+
+.explore-ai {
+  border: 1px solid #222;
+  border-radius: 8px;
+  padding: 0.8rem 1rem;
+  margin-bottom: 1.2rem;
+}
+.explore-ai h2 { font-size: 0.95rem; margin: 0 0 0.6rem; }
+
+.ex-controls { display: flex; flex-wrap: wrap; gap: 0.6rem; margin-bottom: 0.5rem; }
+.ex-field { display: flex; flex-direction: column; gap: 0.2rem; font-size: 0.78rem; color: #666; }
+.ex-field select { font: inherit; padding: 0.3rem; border: 1px solid #ccc; border-radius: 4px; }
+
+.ex-hint, .ex-free, .ex-preview {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  padding: 0.4rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  margin-bottom: 0.4rem;
+}
+.ex-free { height: 4.5rem; }
+.ex-preview { height: 8rem; font-family: ui-monospace, monospace; font-size: 0.8rem; }
+
+.ex-actions { display: flex; gap: 0.5rem; margin-bottom: 0.4rem; }
+.ex-actions button {
+  border: 1px solid #222;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.3rem 0.7rem;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.ex-status { font-size: 0.82rem; color: #b3261e; margin: 0.2rem 0; }
+
+.ex-item {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  padding: 0.5rem 0.7rem;
+  margin-bottom: 0.4rem;
+  font-size: 0.85rem;
+}
+.ex-item-main { flex: 1; display: flex; flex-direction: column; gap: 0.15rem; }
+.ex-item-sub { font-size: 0.78rem; color: #666; }
+.ex-item a { color: #1db954; text-decoration: none; }
+.ex-add {
+  border: 1px solid #222;
+  background: #fff;
+  border-radius: 6px;
+  padding: 0.25rem 0.6rem;
+  font-size: 0.8rem;
+  cursor: pointer;
+}
+.ex-raw { font-size: 0.85rem; white-space: pre-wrap; word-break: break-all; margin: 0.3rem 0; }
+.ex-raw a { color: #1db954; }
+
+.entry-links { font-size: 0.82rem; margin: 0.3rem 0; }
+.entry-links a { color: #1db954; text-decoration: none; margin-right: 0.6rem; }

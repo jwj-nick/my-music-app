@@ -17,6 +17,7 @@
 | credits.conductor | string\|null | 클래식 지휘자 |
 | credits.ensemble | string\|null | 오케스트라/앙상블 |
 | spotifyUrl | string\|null | 딥링크. 아직 못 채운 건 null |
+| links | `{label, url}[]` (선택) | 재생/시청 링크 — T1(플레이 링크) 검색 결과에서 골라 담김. label 예: "KBS 유튜브 2026-03" (2026-08-23, decisions.md #33) |
 | tags | string[] | 자유 형식 — 무드/상황/기타(예: 한국음악가, 방송커버, 딸픽) |
 | intent | `"taste"` \| `"explore"` \| `"family"` | 왜 담았는가 — 내 취향 / 교양 탐구(클래식 등) / 가족 탐구(아이들 인기곡) |
 | note | string | 지식노트 — 리서치하며 누적 |
@@ -70,3 +71,4 @@
 
 ## 확정 이력
 - 2026-08-22 초안 (artist 단일 필드) → Nick 피드백(작사/작곡 필요, 클래식 부적합)으로 `credits` 객체 도입 → 5개 시드로 검증 후 확정.
+- 2026-08-23 `links` 배열 추가(하위호환, 기존 엔트리 무변경) — AI 탐구(T1)로 찾은 영상 링크의 자리. seed의 웬디 자리표시자("곡별로 엔트리 여러 개 생길 것")가 이 필드로 실현된다.

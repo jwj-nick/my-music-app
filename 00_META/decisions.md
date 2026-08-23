@@ -24,3 +24,6 @@
 | 18 | 2026-08-22 | 청취 로그(1.7) — `recommend()`는 여전히 `new Date()`를 직접 안 쓰고, 호출부(`renderRecommend`)가 "오늘 들은 id 목록"을 `excludeIds`로 계산해 넘긴다 | `recommend()`가 내부에서 현재 날짜를 읽으면 순수 함수가 아니게 되어 회귀 테스트가 날짜에 따라 달라짐 — 순수성을 유지해 테스트 가능성을 지킴 | recommend() 내부에서 직접 `new Date()`로 오늘 필터링 |
 | 19 | 2026-08-22 | 마일스톤 1.8 첫 공개 배포 완료 — repo `github.com/jwj-nick/my-music-app`(public), Pages는 GitHub Actions로 `10_app/` 폴더만 배포. 라이브 `https://jwj-nick.github.io/my-music-app/` | Pages 클래식 설정(루트/`docs`)은 `10_app` 같은 임의 서브폴더를 못 골라서 Actions 배포가 필요 — uvm-drill의 "main push→GH Action 배포" 패턴과 동일 | 앱을 repo 루트로 옮기거나 `docs/`로 리네임 |
 | 20 | 2026-08-22 | **Phase 1 완료 확정** — Nick이 폰에서 라이브 배포로 1.1~1.7 전부 직접 확인 | 마일스톤 1.1~1.8 전부 산출물·확인·테스트 통과 | — |
+| 21 | 2026-08-23 | Phase 1.5 아키텍처 = 서버리스 백엔드 없이 브라우저가 Claude API를 직접 호출, API 키는 localStorage에만 저장 | Anthropic이 브라우저 직접 호출을 공식 지원(`dangerouslyAllowBrowser`, CORS). repo가 이미 public이어도 키를 git에 안 넣으면 안전 확보 가능. Vercel/Cloudflare 같은 새 플랫폼 계정 관리 부담도 회피 | Vercel/Cloudflare 서버리스 함수로 키를 프록시 |
+| 22 | 2026-08-23 | repo는 private 전환 가능함을 확인했으나 기존 결정(#1) 유지 — public으로 계속 | 키 보호는 repo 공개 여부와 무관한 별도 축("git에 키를 절대 커밋 안 함")으로 확보되므로, public 유지 이유(학습 공개 패턴)를 바꿀 필요가 없음 | repo를 private으로 전환 |
+| 23 | 2026-08-23 | Vercel MCP 인증 플로우 중단 — 당장 불필요 | #21로 서버리스 백엔드 자체가 불필요해짐. 나중에 다른 앱에서 Vercel이 필요해지면 그때 재개 | 인증을 마무리해서 미리 계정 연결 |

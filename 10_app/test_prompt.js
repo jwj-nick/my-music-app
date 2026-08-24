@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { tasteProfile, buildQuery, shiftYears, parseLinkResults, parseDiscoverResults } = require("./app.js");
+const { tasteProfile, buildQuery, shiftYears, parseLinkResults, parseDiscoverResults, youtubeIdFrom } = require("./app.js");
 
 const seed = JSON.parse(fs.readFileSync(path.join(__dirname, "data", "seed.json"), "utf8"));
 
@@ -100,6 +100,15 @@ const t3parsed = parseDiscoverResults("정지용 - 봄 | 정지용 | 박정현�
 check("case 9 (T3 파싱)", JSON.stringify(t3parsed), JSON.stringify([
   { title: "정지용 - 봄", artist: "정지용", reason: "박정현과 같은 R&B 발라드 계열", tags: ["R&B", "발라드"] }
 ]));
+
+// case 10: youtubeIdFrom — 주요 URL 형태 전부 + 비유튜브는 null
+check("case 10a (watch?v=)", youtubeIdFrom("https://www.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ");
+check("case 10b (watch 파라미터 뒤섞임)", youtubeIdFrom("https://youtube.com/watch?list=PL1&v=dQw4w9WgXcQ&t=10"), "dQw4w9WgXcQ");
+check("case 10c (youtu.be)", youtubeIdFrom("https://youtu.be/dQw4w9WgXcQ?t=30"), "dQw4w9WgXcQ");
+check("case 10d (music.youtube)", youtubeIdFrom("https://music.youtube.com/watch?v=dQw4w9WgXcQ"), "dQw4w9WgXcQ");
+check("case 10e (shorts)", youtubeIdFrom("https://www.youtube.com/shorts/dQw4w9WgXcQ"), "dQw4w9WgXcQ");
+check("case 10f (스포티파이는 null)", youtubeIdFrom("https://open.spotify.com/track/abc"), null);
+check("case 10g (빈 값은 null)", youtubeIdFrom(null), null);
 
 if (failed === 0) console.log("모든 케이스 통과");
 else { console.log(`${failed}개 실패`); process.exit(1); }

@@ -46,10 +46,12 @@
     <p id="count" class="count"></p>
 
     <div class="actions">
+      <button id="play-all" type="button">▶ 지금 목록 재생</button>
       <button id="add-toggle" type="button">+ 새 항목 추가</button>
       <button id="export-toggle" type="button">내보내기</button>
       <button id="settings-toggle" type="button">설정</button>
     </div>
+    <p id="play-status" class="count"></p>
 
     <div id="add-form" class="add-form" hidden>
       <input id="f-title" placeholder="제목 (곡명/아티스트명)">
@@ -80,6 +82,30 @@
   </section>
 
   <main id="entry-list" class="entry-list reveal"></main>
+
+  <!-- 절전 재생 화면 (P3) — 순수 검정, 탭하면 닫힘. 플레이어 바(z 위)는 계속 보임 -->
+  <div id="play-mode" class="play-mode" hidden>
+    <p class="pm-hint">탭하면 밝은 화면으로</p>
+    <h2 id="pm-title"></h2>
+    <p id="pm-sub"></p>
+  </div>
+
+  <!-- 미니 플레이어 (P2) — YouTube IFrame이 #yt-holder를 대체 -->
+  <div id="player-bar" class="player-bar" hidden>
+    <div id="yt-holder"></div>
+    <div class="player-row">
+      <div class="player-info">
+        <b id="pl-title"></b>
+        <span id="pl-sub"></span>
+      </div>
+      <div class="player-controls">
+        <button id="pl-prev" type="button" aria-label="이전 곡">⏮</button>
+        <button id="pl-next" type="button" aria-label="다음 곡">⏭</button>
+        <button id="pl-dark" type="button" aria-label="절전 화면">🌙</button>
+        <button id="pl-close" type="button" aria-label="플레이어 닫기">✕</button>
+      </div>
+    </div>
+  </div>
 
   <script src="app.js"></script>
 </body>

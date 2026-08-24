@@ -58,6 +58,7 @@ async function init() {
   initExport();
   initSettings();
   initExplore();
+  initPlayer();
   renderFilters();
   render();
 }
@@ -422,6 +423,7 @@ function renderCard(entry) {
       <button class="listen-btn" type="button">들었음</button>
       <button class="edit-note-btn" type="button">메모 편집</button>
       <button class="ask-ai-btn" type="button">AI에게 물어보기</button>
+      <button class="find-links-btn" type="button">링크 찾기</button>
       ${local ? '<button class="delete-btn" type="button">삭제</button>' : ""}
     </div>
     </div>
@@ -429,6 +431,7 @@ function renderCard(entry) {
   card.querySelector(".listen-btn").addEventListener("click", () => logListen(entry.id));
   card.querySelector(".edit-note-btn").addEventListener("click", () => startEditNote(card, entry));
   card.querySelector(".ask-ai-btn").addEventListener("click", () => startAskAI(card, entry));
+  card.querySelector(".find-links-btn").addEventListener("click", () => startFindLinks(card, entry));
   if (local) {
     card.querySelector(".delete-btn").addEventListener("click", () => deleteLocalEntry(entry.id));
   }
@@ -658,6 +661,217 @@ function initExport() {
       box.value = JSON.stringify({ localEntries, overrides }, null, 2);
       box.select();
     }
+  });
+}
+
+// ---- 재생 (P2·P3, decisions.md #39~40) ----
+//
+// 현재 탭/필터 결과 중 YouTube 링크가 있는 엔트리들이 재생 큐가 된다.
+// YouTube IFrame Player API — 곡이 끝나면(ENDED) 청취 로그를 남기고 자동으로 다음 곡.
+// 화면 유지는 Screen Wake Lock API (미지원 브라우저에선 조용히 무시 — APK에선 네이티브로 보강 예정).
+// 절전 화면(P3)은 순수 검정 오버레이가 플레이어 바만 남기고 화면을 덮는다 (플레이어는 정책상 항상 노출).
+
+let playQueue = [];      // [{ entry, videoId }]
+let playIndex = -1;
+let ytPlayer = null;
+let ytApiLoading = false;
+let wakeLockSentinel = null;
+
+// 순수 함수 — URL에서 YouTube 영상 id 추출 (watch?v= / youtu.be / embed / shorts / music.youtube)
+function youtubeIdFrom(url) {
+  if (!url) return null;
+  const m = url.match(/(?:youtube\.com\/(?:watch\?(?:.*&)?v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  return m ? m[1] : null;
+}
+
+function firstYoutubeId(entry) {
+  for (const l of (entry.links || [])) {
+    const id = youtubeIdFrom(l.url);
+    if (id) return id;
+  }
+  return null;
+}
+
+function buildPlayQueue() {
+  return mergedEntries()
+    .filter(matchesFilters)
+    .map(e => ({ entry: e, videoId: firstYoutubeId(e) }))
+    .filter(x => x.videoId);
+}
+
+function ensureYtApi(cb) {
+  if (window.YT && window.YT.Player) { cb(); return; }
+  const prev = window.onYouTubeIframeAPIReady;
+  window.onYouTubeIframeAPIReady = () => { if (prev) prev(); cb(); };
+  if (!ytApiLoading) {
+    ytApiLoading = true;
+    const tag = document.createElement("script");
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.head.appendChild(tag);
+  }
+}
+
+async function requestWakeLock() {
+  try {
+    if (!wakeLockSentinel && navigator.wakeLock) {
+      wakeLockSentinel = await navigator.wakeLock.request("screen");
+      wakeLockSentinel.addEventListener("release", () => { wakeLockSentinel = null; });
+    }
+  } catch { /* 미지원/거부 — 재생은 계속 */ }
+}
+function releaseWakeLock() {
+  try { if (wakeLockSentinel) { wakeLockSentinel.release(); wakeLockSentinel = null; } } catch {}
+}
+
+function updatePlayerInfo() {
+  const cur = playQueue[playIndex];
+  if (!cur) return;
+  const sub = `${formatCredits(cur.entry.credits)} · ${playIndex + 1}/${playQueue.length}`;
+  document.getElementById("pl-title").textContent = cur.entry.title;
+  document.getElementById("pl-sub").textContent = sub;
+  document.getElementById("pm-title").textContent = cur.entry.title;
+  document.getElementById("pm-sub").textContent = sub;
+}
+
+function loadCurrent() {
+  ytPlayer.loadVideoById(playQueue[playIndex].videoId);
+  updatePlayerInfo();
+}
+
+function nextTrack() {
+  if (playIndex < playQueue.length - 1) { playIndex++; loadCurrent(); }
+  else stopPlayer();
+}
+function prevTrack() {
+  if (playIndex > 0) { playIndex--; loadCurrent(); }
+}
+
+function stopPlayer() {
+  if (ytPlayer) { try { ytPlayer.stopVideo(); } catch {} }
+  document.getElementById("player-bar").hidden = true;
+  document.getElementById("play-mode").hidden = true;
+  document.body.classList.remove("has-player");
+  releaseWakeLock();
+}
+
+function startQueue() {
+  const statusEl = document.getElementById("play-status");
+  playQueue = buildPlayQueue();
+  if (playQueue.length === 0) {
+    statusEl.textContent = "재생할 유튜브 링크가 없습니다 — 카드의 \"링크 찾기\"나 탐구(들을·볼 것 찾기)로 먼저 채워주세요.";
+    return;
+  }
+  statusEl.textContent = "";
+  playIndex = 0;
+  document.getElementById("player-bar").hidden = false;
+  document.body.classList.add("has-player");
+  ensureYtApi(() => {
+    if (!ytPlayer) {
+      ytPlayer = new YT.Player("yt-holder", {
+        width: "100%",
+        height: "200",
+        videoId: playQueue[0].videoId,
+        playerVars: { autoplay: 1, playsinline: 1 },
+        events: {
+          onStateChange: (e) => {
+            if (e.data === YT.PlayerState.ENDED) {
+              logListen(playQueue[playIndex].entry.id); // 끝까지 들었을 때만 청취 로그
+              nextTrack();
+            } else if (e.data === YT.PlayerState.PLAYING) {
+              requestWakeLock();
+            }
+          }
+        }
+      });
+      updatePlayerInfo();
+    } else {
+      loadCurrent();
+    }
+  });
+}
+
+function initPlayer() {
+  document.getElementById("play-all").addEventListener("click", startQueue);
+  document.getElementById("pl-prev").addEventListener("click", prevTrack);
+  document.getElementById("pl-next").addEventListener("click", nextTrack);
+  document.getElementById("pl-close").addEventListener("click", stopPlayer);
+  document.getElementById("pl-dark").addEventListener("click", () => {
+    document.getElementById("play-mode").hidden = false;
+  });
+  document.getElementById("play-mode").addEventListener("click", () => {
+    document.getElementById("play-mode").hidden = true;
+  });
+  // 화면 복귀 시 wake lock 재획득 (브라우저가 백그라운드 전환 때 자동 해제하므로)
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && !document.getElementById("player-bar").hidden) {
+      requestWakeLock();
+    }
+  });
+}
+
+// ---- 링크 찾기 (P1, decisions.md #41) — 엔트리별 T1 쿼리 자동 실행 ----
+
+function attachLinkToEntry(entry, link) {
+  const newLinks = [...(entry.links || []), link];
+  if (isLocalId(entry.id)) {
+    const idx = localEntries.findIndex(e => e.id === entry.id);
+    if (idx >= 0) {
+      localEntries[idx] = { ...localEntries[idx], links: newLinks };
+      saveLocalEntries(localEntries);
+    }
+  } else {
+    // seed 엔트리는 overrides 레이어로 — seed.json 자체는 불변 (decisions.md #14)
+    overrides[entry.id] = { ...(overrides[entry.id] || {}), links: newLinks };
+    saveOverrides(overrides);
+  }
+  render();
+}
+
+function startFindLinks(card, entry) {
+  if (card.querySelector(".find-links-box")) return;
+
+  const box = document.createElement("div");
+  box.className = "ask-ai-box find-links-box";
+  box.innerHTML = `
+    <p class="ask-ai-result">유튜브 링크 찾는 중...</p>
+    <button type="button" class="ask-ai-cancel" style="align-self:flex-start">닫기</button>
+  `;
+  card.appendChild(box);
+  box.querySelector(".ask-ai-cancel").addEventListener("click", () => box.remove());
+
+  const resultEl = box.querySelector(".ask-ai-result");
+  const target = entry.credits.performer && entry.credits.performer !== entry.title
+    ? `${entry.credits.performer} "${entry.title}"`
+    : entry.title;
+
+  askClaude(buildQuery({
+    type: "links",
+    target,
+    form: "공식 음원 영상 또는 대표 라이브/커버 영상",
+    period: "any",
+    count: 3,
+    today: todayStr(),
+    hint: "YouTube 링크 위주"
+  })).then(({ text, error }) => {
+    if (error) { resultEl.textContent = error; return; }
+    const items = parseLinkResults(text).filter(it => youtubeIdFrom(it.url));
+    if (items.length === 0) { resultEl.textContent = "유튜브 링크를 못 찾았습니다:\n" + text; return; }
+    resultEl.remove();
+    items.forEach(item => {
+      const row = document.createElement("div");
+      row.className = "ex-item";
+      row.innerHTML = `
+        <div class="ex-item-main">
+          <b>${escapeHtml(item.title)}</b>
+          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}</span>
+        </div>
+        <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">확인</a>
+        <button type="button" class="ex-add">붙이기</button>`;
+      row.querySelector(".ex-add").addEventListener("click", () => {
+        attachLinkToEntry(entry, { label: `${item.channel} ${item.date}`.trim(), url: item.url });
+      });
+      box.insertBefore(row, box.querySelector(".ask-ai-cancel"));
+    });
   });
 }
 
@@ -992,6 +1206,7 @@ if (typeof module !== "undefined" && module.exports) {
     recommend,
     scoreEntry: (entry, tags) => tags.filter(t => entry.tags.includes(t)).length,
     tasteProfile,
-    buildQuery, shiftYears, parseLinkResults, parseDiscoverResults
+    buildQuery, shiftYears, parseLinkResults, parseDiscoverResults,
+    youtubeIdFrom
   };
 }

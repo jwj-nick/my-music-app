@@ -66,6 +66,10 @@
 
 * { box-sizing: border-box; }
 
+/* hidden 속성 보호 — 브라우저 기본(display:none)은 작성자 CSS의 display 선언에 진다.
+   .play-mode{display:flex} 같은 선언이 hidden을 무력화해 오버레이가 항상 떠 있던 버그(2026-08-25)의 재발 방지. */
+[hidden] { display: none !important; }
+
 html { background: var(--bg); }
 
 body {

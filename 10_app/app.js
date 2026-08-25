@@ -14,6 +14,7 @@ const LS_ENTRIES = "mma_local_entries";
 const LS_OVERRIDES = "mma_overrides";
 const LS_LOGS = "mma_logs";
 const LS_APIKEY = "mma_api_key"; // Claude API 키 — 절대 seed.json/git에 안 들어감, 이 브라우저에만 저장 (decisions.md #21)
+const LS_YTKEY = "mma_yt_key";   // YouTube Data API 키 — 같은 원칙. 링크 찾기/T1의 기본 엔진 (decisions.md #42)
 const CLAUDE_MODEL = "claude-haiku-4-5-20251001"; // 개인 앱 운영비 0원 원칙(decisions.md #25) — 품질이 아쉬우면 이 상수만 교체
 const CLAUDE_MAX_TOKENS = 1600; // T1 10개+추천이유 응답이 잘리지 않게 (2026-08-25 상향)
 const CLAUDE_MAX_SEARCHES = 3; // 웹 검색 도구(decisions.md #28) — 질문 하나당 검색 상한, 검색 1회 = $0.01(+토큰)
@@ -94,6 +95,54 @@ function saveApiKey(key) {
 }
 function deleteApiKey() {
   localStorage.removeItem(LS_APIKEY);
+}
+function loadYtKey() { return localStorage.getItem(LS_YTKEY) || ""; }
+function saveYtKey(key) { localStorage.setItem(LS_YTKEY, key); }
+function deleteYtKey() { localStorage.removeItem(LS_YTKEY); }
+
+// ---- YouTube Data API 직접 검색 (decisions.md #42) ----
+//
+// "영상 목록 찾기"는 AI 웹검색보다 유튜브 자체 검색 엔진이 압도적으로 낫다 —
+// 유튜브 앱에서 검색하는 것과 같은 결과(제목·채널·업로드일·videoId)가 구조화되어 온다.
+// 무료 할당량: 하루 검색 100회. AI(askClaude)는 지식/추천/브리핑에만 쓰고, T1은 이쪽이 기본.
+
+function decodeEntities(str) {
+  const ta = document.createElement("textarea");
+  ta.innerHTML = str;
+  return ta.value;
+}
+
+async function searchYouTube(query, opts = {}) {
+  const key = loadYtKey();
+  if (!key) return { error: "설정에서 YouTube API 키를 먼저 입력해주세요." };
+  const params = new URLSearchParams({
+    part: "snippet", type: "video",
+    maxResults: String(opts.maxResults || 10),
+    q: query, key
+  });
+  if (opts.publishedAfter) params.set("publishedAfter", opts.publishedAfter);
+  let res;
+  try {
+    res = await fetch("https://www.googleapis.com/youtube/v3/search?" + params.toString());
+  } catch (err) {
+    return { error: "네트워크 오류: " + err.message };
+  }
+  if (!res.ok) {
+    const bodyText = await res.text().catch(() => "");
+    return { error: `YouTube API 오류 (${res.status}): ${bodyText.slice(0, 200)}` };
+  }
+  const data = await res.json();
+  const items = (data.items || [])
+    .filter(it => it.id && it.id.videoId)
+    .map(it => ({
+      title: decodeEntities(it.snippet.title),
+      artist: "", // 검색 결과엔 아티스트 필드가 없음 — 호출부가 대상 이름으로 채움
+      channel: decodeEntities(it.snippet.channelTitle),
+      date: (it.snippet.publishedAt || "").slice(0, 10),
+      reason: "",
+      url: "https://www.youtube.com/watch?v=" + it.id.videoId
+    }));
+  return { items };
 }
 
 // ---- Claude API 직접 호출 (마일스톤 1.5.4) ----
@@ -851,26 +900,62 @@ function attachLinkToEntry(entry, link) {
   // 저장만 하고 화면 갱신은 다음 자연스러운 render(필터 클릭 등) 때 반영되게 둔다.
 }
 
+function renderLinkCandidates(box, items, entry) {
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "ex-item ex-item--compact";
+    row.innerHTML = `
+      <div class="ex-item-main">
+        <b>${escapeHtml(item.title)}</b>
+        <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}${item.reason ? " — " + escapeHtml(item.reason) : ""}</span>
+      </div>
+      <button type="button" class="ex-play" aria-label="미리듣기">▶</button>
+      <button type="button" class="ex-add">붙이기</button>`;
+    row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, entry));
+    row.querySelector(".ex-add").addEventListener("click", () => {
+      attachLinkToEntry(entry, { label: `${item.channel} ${item.date}`.trim(), url: item.url });
+      row.querySelector(".ex-add").textContent = "붙음";
+      row.querySelector(".ex-add").disabled = true;
+    });
+    box.insertBefore(row, box.querySelector(".ask-ai-cancel"));
+  });
+}
+
 function startFindLinks(card, entry) {
   if (card.querySelector(".find-links-box")) return;
 
   const box = document.createElement("div");
   box.className = "ask-ai-box find-links-box";
   box.innerHTML = `
-    <p class="ask-ai-result">유튜브 링크 찾는 중...</p>
+    <p class="ask-ai-result">유튜브에서 찾는 중...</p>
     <button type="button" class="ask-ai-cancel" style="align-self:flex-start">닫기</button>
   `;
   card.appendChild(box);
   box.querySelector(".ask-ai-cancel").addEventListener("click", () => box.remove());
 
   const resultEl = box.querySelector(".ask-ai-result");
-  const target = entry.credits.performer && entry.credits.performer !== entry.title
-    ? `${entry.credits.performer} "${entry.title}"`
-    : entry.title;
+  const performer = entry.credits.performer || entry.title;
+  const query = performer !== entry.title && entry.type === "track"
+    ? `${performer} ${entry.title}`
+    : performer;
 
+  if (loadYtKey()) {
+    // 기본 경로: YouTube 자체 검색 — 유튜브에서 직접 검색하는 것과 같은 품질 (decisions.md #42)
+    searchYouTube(query, { maxResults: 10 }).then(({ items, error }) => {
+      if (error) { resultEl.textContent = error; return; }
+      if (!items.length) { resultEl.textContent = "검색 결과가 없습니다."; return; }
+      resultEl.remove();
+      items.forEach(it => { it.artist = performer; });
+      renderLinkCandidates(box, items, entry);
+    });
+    return;
+  }
+
+  // 폴백: AI 웹검색 (YouTube 키가 없을 때) — 품질이 낮으니 키 등록 안내를 함께
+  resultEl.textContent = "AI 웹검색으로 찾는 중... (설정에 YouTube API 키를 넣으면 유튜브 검색 품질로 좋아집니다)";
   askClaude(buildQuery({
     type: "links",
-    target,
+    target: query,
     form: "공식 음원 영상, 대표 라이브/커버 영상",
     period: "any",
     count: 10,
@@ -881,24 +966,7 @@ function startFindLinks(card, entry) {
     const items = parseLinkResults(text).filter(it => youtubeIdFrom(it.url));
     if (items.length === 0) { resultEl.textContent = "유튜브 링크를 못 찾았습니다:\n" + text; return; }
     resultEl.remove();
-    items.forEach(item => {
-      const row = document.createElement("div");
-      row.className = "ex-item ex-item--compact";
-      row.innerHTML = `
-        <div class="ex-item-main">
-          <b>${escapeHtml(item.title)}</b>
-          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}${item.reason ? " — " + escapeHtml(item.reason) : ""}</span>
-        </div>
-        <button type="button" class="ex-play" aria-label="미리듣기">▶</button>
-        <button type="button" class="ex-add">붙이기</button>`;
-      row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, entry));
-      row.querySelector(".ex-add").addEventListener("click", () => {
-        attachLinkToEntry(entry, { label: `${item.channel} ${item.date}`.trim(), url: item.url });
-        row.querySelector(".ex-add").textContent = "붙음";
-        row.querySelector(".ex-add").disabled = true;
-      });
-      box.insertBefore(row, box.querySelector(".ask-ai-cancel"));
-    });
+    renderLinkCandidates(box, items, entry);
   });
 }
 
@@ -914,13 +982,14 @@ const EX_TYPES = [
   { key: "brief", label: "요즘 소식 브리핑" },
   { key: "free", label: "자유 질문" }
 ];
-const EX_FORMS = [ // T1 형태 — value가 태그로도 쓰임
-  { value: "방송커버", query: "방송 커버 영상" },
-  { value: "라이브", query: "라이브 무대 영상" },
-  { value: "뮤비", query: "뮤직비디오" },
-  { value: "발매", query: "정규/싱글 발매곡" }
+const EX_FORMS = [ // T1 형태 — value가 태그로도 쓰이고, kw는 유튜브 검색어에 붙는 키워드
+  { value: "방송커버", query: "방송 커버 영상", kw: "커버" },
+  { value: "라이브", query: "라이브 무대 영상", kw: "라이브" },
+  { value: "뮤비", query: "뮤직비디오", kw: "MV" },
+  { value: "발매", query: "정규/싱글 발매곡", kw: "공식 음원" }
 ];
 let exType = null;
+let exNative = null; // T1을 YouTube API로 보낼 때의 상태 {target, period, count} — 미리보기 내용이 검색어가 됨
 
 function exSelect(id, label, options) {
   // options: [{value, label}]
@@ -1087,37 +1156,48 @@ function exAddDiscoverEntry(item) {
   render();
 }
 
+function renderExploreLinkItems(items) {
+  const box = document.getElementById("ex-results");
+  box.innerHTML = "";
+  const formEl = document.getElementById("ex-form");
+  const formTag = formEl ? formEl.value : "";
+  if (items.length === 0) {
+    box.innerHTML = '<p class="ex-raw">결과가 없습니다.</p>';
+    return;
+  }
+  items.forEach(item => {
+    const row = document.createElement("div");
+    row.className = "ex-item ex-item--compact";
+    const canPreview = !!youtubeIdFrom(item.url);
+    row.innerHTML = `
+      <div class="ex-item-main">
+        <b>${escapeHtml(item.title)}</b>${item.artist ? " — " + escapeHtml(item.artist) : ""}
+        <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}${item.reason ? " — " + escapeHtml(item.reason) : ""}</span>
+      </div>
+      ${canPreview ? '<button type="button" class="ex-play" aria-label="미리듣기">▶</button>'
+                   : `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">열기</a>`}
+      <button type="button" class="ex-add">+추가</button>`;
+    if (canPreview) row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, null));
+    row.querySelector(".ex-add").addEventListener("click", () => {
+      exAddLinkEntry(item, formTag);
+      row.querySelector(".ex-add").textContent = "추가됨";
+      row.querySelector(".ex-add").disabled = true;
+    });
+    box.appendChild(row);
+  });
+}
+
 function renderExploreResults(text) {
   const box = document.getElementById("ex-results");
   box.innerHTML = "";
 
   if (exType === "links") {
     const items = parseLinkResults(text);
-    const formTag = document.getElementById("ex-form").value;
     if (items.length === 0) {
       box.innerHTML = `<p class="ex-raw">${linkify(text)}</p>`;
       return;
     }
-    items.forEach(item => {
-      const row = document.createElement("div");
-      row.className = "ex-item ex-item--compact";
-      const canPreview = !!youtubeIdFrom(item.url);
-      row.innerHTML = `
-        <div class="ex-item-main">
-          <b>${escapeHtml(item.title)}</b> — ${escapeHtml(item.artist)}
-          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}${item.reason ? " — " + escapeHtml(item.reason) : ""}</span>
-        </div>
-        ${canPreview ? '<button type="button" class="ex-play" aria-label="미리듣기">▶</button>'
-                     : `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">열기</a>`}
-        <button type="button" class="ex-add">+추가</button>`;
-      if (canPreview) row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, null));
-      row.querySelector(".ex-add").addEventListener("click", () => {
-        exAddLinkEntry(item, formTag);
-        row.querySelector(".ex-add").textContent = "추가됨";
-        row.querySelector(".ex-add").disabled = true;
-      });
-      box.appendChild(row);
-    });
+    renderExploreLinkItems(items);
   } else if (exType === "discover") {
     const items = parseDiscoverResults(text);
     if (items.length === 0) {
@@ -1171,18 +1251,45 @@ function initExplore() {
       return;
     }
     statusEl.textContent = "";
-    preview.value = buildQuery(sel);
+    if (sel.type === "links" && loadYtKey()) {
+      // 네이티브 경로 — 미리보기 = 유튜브 검색어 그대로 (수정 가능)
+      exNative = { target: sel.target, period: sel.period, count: sel.count };
+      const form = EX_FORMS.find(f => f.value === sel.formTag);
+      preview.value = [sel.target, form ? form.kw : "", sel.hint].filter(Boolean).join(" ");
+    } else {
+      exNative = null;
+      preview.value = buildQuery(sel);
+    }
     preview.hidden = false;
     sendBtn.hidden = false;
   });
 
   sendBtn.addEventListener("click", async () => {
+    const resultsEl = document.getElementById("ex-results");
+
+    // T1 네이티브 경로: 미리보기 내용을 유튜브 검색어로 실행 (decisions.md #42)
+    if (exType === "links" && exNative && loadYtKey()) {
+      const q = preview.value.trim();
+      if (!q) return;
+      statusEl.textContent = "유튜브에서 찾는 중...";
+      resultsEl.innerHTML = "";
+      const publishedAfter =
+        exNative.period === "1y" ? shiftYears(todayStr(), -1) + "T00:00:00Z" :
+        exNative.period === "3y" ? shiftYears(todayStr(), -3) + "T00:00:00Z" : undefined;
+      const { items, error } = await searchYouTube(q, { maxResults: exNative.count || 10, publishedAfter });
+      if (error) { statusEl.textContent = error; return; }
+      statusEl.textContent = "";
+      items.forEach(it => { it.artist = exNative.target; });
+      renderExploreLinkItems(items);
+      return;
+    }
+
     const prompt = exType === "free"
       ? document.getElementById("ex-free").value.trim()
       : preview.value.trim();
     if (!prompt) return;
     statusEl.textContent = "물어보는 중...";
-    document.getElementById("ex-results").innerHTML = "";
+    resultsEl.innerHTML = "";
     const { text, error } = await askClaude(prompt);
     if (error) { statusEl.textContent = error; return; }
     statusEl.textContent = "";
@@ -1198,9 +1305,14 @@ function initSettings() {
   const input = document.getElementById("f-apikey");
   const statusEl = document.getElementById("apikey-status");
 
+  const ytInput = document.getElementById("f-ytkey");
+  const ytStatusEl = document.getElementById("ytkey-status");
+
   function refreshStatus() {
     const key = loadApiKey();
     statusEl.textContent = key ? `저장됨 (••••${key.slice(-4)})` : "저장된 키 없음";
+    const ytKey = loadYtKey();
+    ytStatusEl.textContent = ytKey ? `저장됨 (••••${ytKey.slice(-4)})` : "저장된 키 없음";
   }
 
   toggleBtn.addEventListener("click", () => {
@@ -1219,6 +1331,20 @@ function initSettings() {
   document.getElementById("apikey-delete").addEventListener("click", () => {
     deleteApiKey();
     input.value = "";
+    refreshStatus();
+  });
+
+  document.getElementById("ytkey-save").addEventListener("click", () => {
+    const key = ytInput.value.trim();
+    if (!key) return;
+    saveYtKey(key);
+    ytInput.value = "";
+    refreshStatus();
+  });
+
+  document.getElementById("ytkey-delete").addEventListener("click", () => {
+    deleteYtKey();
+    ytInput.value = "";
     refreshStatus();
   });
 

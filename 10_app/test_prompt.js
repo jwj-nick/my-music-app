@@ -50,8 +50,9 @@ check("case 4 (T1 웬디 커버)", buildQuery({
   hint: "JTBC, KBS 유튜브 위주"
 }), [
   '"웬디 (레드벨벳)"의 방송 커버 영상을(를) 웹에서 검색해줘. 기간: 2025-08-23 ~ 2026-08-23. 최대 10개.',
+  "같은 곡은 한 번만 — 소스만 다른 중복은 제외하고, 서로 다른 곡/무대 위주로.",
   "각 항목을 정확히 이 형식의 한 줄로 써줘:",
-  "곡명 | 아티스트 | 채널/방송 | 날짜 | URL",
+  "곡명 | 아티스트 | 채널/방송 | 날짜 | 추천 이유(한 줄) | URL",
   "확인된 것만 쓰고 추측 금지. 실제 URL 필수. 못 찾으면 찾은 만큼만 써줘.",
   "추가 조건: JTBC, KBS 유튜브 위주"
 ].join("\n"));
@@ -81,18 +82,19 @@ check("case 7 (기간 연 경계)", buildQuery({
 
 // ---- 응답 파싱 ----
 
-// case 8: T1 파싱 — 불릿/번호 접두 제거, URL 없는 줄과 형식 어긋난 줄은 버림
+// case 8: T1 파싱 — 불릿/번호 접두 제거, URL 없는 줄·형식 어긋난 줄·같은 곡 중복은 버림
 const t1raw = [
   "찾은 결과입니다:",
-  "1. Hero | 웬디 | KBS 더시즌즈 | 2026-03-14 | https://youtube.com/watch?v=abc",
-  "- Speechless | 웬디 | JTBC 비긴어게인 | 2025-11-02 | https://youtube.com/watch?v=def",
+  "1. Hero | 웬디 | KBS 더시즌즈 | 2026-03-14 | 라이브 보컬이 좋음 | https://youtube.com/watch?v=abc",
+  "- Speechless | 웬디 | JTBC 비긴어게인 | 2025-11-02 | 버스킹 버전 | https://youtube.com/watch?v=def",
+  "Hero | 웬디 | 유튜브 팬업로드 | 2026-04-01 | 같은 곡 다른 소스 | https://youtube.com/watch?v=xyz",
   "형식 어긋난 줄 | 두 필드뿐",
-  "곡명 | 아티스트 | 채널 | 날짜 | URL없음"
+  "곡명 | 아티스트 | 채널 | 날짜 | 이유 | URL없음"
 ].join("\n");
 const t1parsed = parseLinkResults(t1raw);
-check("case 8 (T1 파싱)", JSON.stringify(t1parsed), JSON.stringify([
-  { title: "Hero", artist: "웬디", channel: "KBS 더시즌즈", date: "2026-03-14", url: "https://youtube.com/watch?v=abc" },
-  { title: "Speechless", artist: "웬디", channel: "JTBC 비긴어게인", date: "2025-11-02", url: "https://youtube.com/watch?v=def" }
+check("case 8 (T1 파싱, 중복 제거)", JSON.stringify(t1parsed), JSON.stringify([
+  { title: "Hero", artist: "웬디", channel: "KBS 더시즌즈", date: "2026-03-14", reason: "라이브 보컬이 좋음", url: "https://youtube.com/watch?v=abc" },
+  { title: "Speechless", artist: "웬디", channel: "JTBC 비긴어게인", date: "2025-11-02", reason: "버스킹 버전", url: "https://youtube.com/watch?v=def" }
 ]));
 
 // case 9: T3 파싱 — 태그가 배열로 쪼개지는가

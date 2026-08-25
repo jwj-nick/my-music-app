@@ -452,6 +452,19 @@ section { margin-bottom: 1rem; }
   flex: 0 0 auto;
 }
 .ex-add:disabled { opacity: 0.5; cursor: default; }
+.ex-item--compact { padding: 0.4rem 0.6rem; margin-bottom: 0.3rem; font-size: 0.82rem; }
+.ex-play {
+  border: none;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 999px;
+  width: 1.8rem;
+  height: 1.8rem;
+  font-size: 0.7rem;
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-shadow: var(--shadow-soft);
+}
 .ex-raw { font-size: 0.84rem; white-space: pre-wrap; word-break: break-word; margin: 0.3rem 0; }
 .ex-raw a { color: var(--accent); }
 

@@ -15,7 +15,7 @@ const LS_OVERRIDES = "mma_overrides";
 const LS_LOGS = "mma_logs";
 const LS_APIKEY = "mma_api_key"; // Claude API 키 — 절대 seed.json/git에 안 들어감, 이 브라우저에만 저장 (decisions.md #21)
 const CLAUDE_MODEL = "claude-haiku-4-5-20251001"; // 개인 앱 운영비 0원 원칙(decisions.md #25) — 품질이 아쉬우면 이 상수만 교체
-const CLAUDE_MAX_TOKENS = 1024;
+const CLAUDE_MAX_TOKENS = 1600; // T1 10개+추천이유 응답이 잘리지 않게 (2026-08-25 상향)
 const CLAUDE_MAX_SEARCHES = 3; // 웹 검색 도구(decisions.md #28) — 질문 하나당 검색 상한, 검색 1회 = $0.01(+토큰)
 
 let allEntries = [];      // seed.json에서 읽은 고정 데이터
@@ -296,8 +296,9 @@ function buildQuery(sel) {
   if (sel.type === "links") { // T1 플레이 링크
     return [
       `"${sel.target}"의 ${sel.form}을(를) 웹에서 검색해줘. ${periodClause(sel.period, today)} 최대 ${sel.count}개.`,
+      `같은 곡은 한 번만 — 소스만 다른 중복은 제외하고, 서로 다른 곡/무대 위주로.`,
       `각 항목을 정확히 이 형식의 한 줄로 써줘:`,
-      `곡명 | 아티스트 | 채널/방송 | 날짜 | URL`,
+      `곡명 | 아티스트 | 채널/방송 | 날짜 | 추천 이유(한 줄) | URL`,
       `확인된 것만 쓰고 추측 금지. 실제 URL 필수. 못 찾으면 찾은 만큼만 써줘.`
     ].join("\n") + hint;
   }
@@ -340,10 +341,17 @@ function parsePipeLines(text, fieldCount) {
     .map(line => line.split("|").map(s => s.trim()));
 }
 
-function parseLinkResults(text) { // T1: 곡명|아티스트|채널|날짜|URL
-  return parsePipeLines(text, 5)
-    .filter(f => /^https?:\/\//.test(f[4]))
-    .map(f => ({ title: f[0], artist: f[1], channel: f[2], date: f[3], url: f[4] }));
+function parseLinkResults(text) { // T1: 곡명|아티스트|채널|날짜|이유|URL — 같은 곡(제목+아티스트)은 첫 것만
+  const seen = new Set();
+  return parsePipeLines(text, 6)
+    .filter(f => /^https?:\/\//.test(f[5]))
+    .map(f => ({ title: f[0], artist: f[1], channel: f[2], date: f[3], reason: f[4], url: f[5] }))
+    .filter(item => {
+      const key = (item.title + "|" + item.artist).toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function parseDiscoverResults(text) { // T3: 제목|아티스트|이유|태그
@@ -754,14 +762,9 @@ function stopPlayer() {
   releaseWakeLock();
 }
 
-function startQueue() {
-  const statusEl = document.getElementById("play-status");
-  playQueue = buildPlayQueue();
-  if (playQueue.length === 0) {
-    statusEl.textContent = "재생할 유튜브 링크가 없습니다 — 카드의 \"링크 찾기\"나 탐구(들을·볼 것 찾기)로 먼저 채워주세요.";
-    return;
-  }
-  statusEl.textContent = "";
+// 큐를 받아 플레이어를 여는 공통 진입점 — 전체 재생(startQueue)과 미리듣기(previewVideo)가 공유
+function openPlayerWithQueue(queue) {
+  playQueue = queue;
   playIndex = 0;
   document.getElementById("player-bar").hidden = false;
   document.body.classList.add("has-player");
@@ -775,7 +778,8 @@ function startQueue() {
         events: {
           onStateChange: (e) => {
             if (e.data === YT.PlayerState.ENDED) {
-              logListen(playQueue[playIndex].entry.id); // 끝까지 들었을 때만 청취 로그
+              const cur = playQueue[playIndex];
+              if (!cur.preview) logListen(cur.entry.id); // 끝까지 들었을 때만 청취 로그 (미저장 후보는 제외)
               nextTrack();
             } else if (e.data === YT.PlayerState.PLAYING) {
               requestWakeLock();
@@ -788,6 +792,25 @@ function startQueue() {
       loadCurrent();
     }
   });
+}
+
+function startQueue() {
+  const statusEl = document.getElementById("play-status");
+  const queue = buildPlayQueue();
+  if (queue.length === 0) {
+    statusEl.textContent = "재생할 유튜브 링크가 없습니다 — 카드의 \"링크 찾기\"나 탐구(들을·볼 것 찾기)로 먼저 채워주세요.";
+    return;
+  }
+  statusEl.textContent = "";
+  openPlayerWithQueue(queue);
+}
+
+// 검색 결과 후보를 저장 전에 바로 들어보기 — 아직 엔트리가 아니면 preview 플래그로 로그 제외
+function previewVideo(item, entry) {
+  const videoId = youtubeIdFrom(item.url);
+  if (!videoId) return;
+  const pseudo = entry || { id: "preview", title: item.title, credits: { performer: item.artist } };
+  openPlayerWithQueue([{ entry: pseudo, videoId, preview: !entry }]);
 }
 
 function initPlayer() {
@@ -824,7 +847,8 @@ function attachLinkToEntry(entry, link) {
     overrides[entry.id] = { ...(overrides[entry.id] || {}), links: newLinks };
     saveOverrides(overrides);
   }
-  render();
+  // 주의: 여기서 render()를 부르면 열려 있는 "링크 찾기" 결과 박스가 통째로 사라진다 —
+  // 저장만 하고 화면 갱신은 다음 자연스러운 render(필터 클릭 등) 때 반영되게 둔다.
 }
 
 function startFindLinks(card, entry) {
@@ -847,11 +871,11 @@ function startFindLinks(card, entry) {
   askClaude(buildQuery({
     type: "links",
     target,
-    form: "공식 음원 영상 또는 대표 라이브/커버 영상",
+    form: "공식 음원 영상, 대표 라이브/커버 영상",
     period: "any",
-    count: 3,
+    count: 10,
     today: todayStr(),
-    hint: "YouTube 링크 위주"
+    hint: "YouTube 링크 위주, 서로 다른 곡으로 다양하게"
   })).then(({ text, error }) => {
     if (error) { resultEl.textContent = error; return; }
     const items = parseLinkResults(text).filter(it => youtubeIdFrom(it.url));
@@ -859,16 +883,19 @@ function startFindLinks(card, entry) {
     resultEl.remove();
     items.forEach(item => {
       const row = document.createElement("div");
-      row.className = "ex-item";
+      row.className = "ex-item ex-item--compact";
       row.innerHTML = `
         <div class="ex-item-main">
           <b>${escapeHtml(item.title)}</b>
-          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}</span>
+          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}${item.reason ? " — " + escapeHtml(item.reason) : ""}</span>
         </div>
-        <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">확인</a>
+        <button type="button" class="ex-play" aria-label="미리듣기">▶</button>
         <button type="button" class="ex-add">붙이기</button>`;
+      row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, entry));
       row.querySelector(".ex-add").addEventListener("click", () => {
         attachLinkToEntry(entry, { label: `${item.channel} ${item.date}`.trim(), url: item.url });
+        row.querySelector(".ex-add").textContent = "붙음";
+        row.querySelector(".ex-add").disabled = true;
       });
       box.insertBefore(row, box.querySelector(".ask-ai-cancel"));
     });
@@ -1073,14 +1100,17 @@ function renderExploreResults(text) {
     }
     items.forEach(item => {
       const row = document.createElement("div");
-      row.className = "ex-item";
+      row.className = "ex-item ex-item--compact";
+      const canPreview = !!youtubeIdFrom(item.url);
       row.innerHTML = `
         <div class="ex-item-main">
           <b>${escapeHtml(item.title)}</b> — ${escapeHtml(item.artist)}
-          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}</span>
+          <span class="ex-item-sub">${escapeHtml(item.channel)} · ${escapeHtml(item.date)}${item.reason ? " — " + escapeHtml(item.reason) : ""}</span>
         </div>
-        <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">열기</a>
+        ${canPreview ? '<button type="button" class="ex-play" aria-label="미리듣기">▶</button>'
+                     : `<a href="${escapeHtml(item.url)}" target="_blank" rel="noopener">열기</a>`}
         <button type="button" class="ex-add">+추가</button>`;
+      if (canPreview) row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, null));
       row.querySelector(".ex-add").addEventListener("click", () => {
         exAddLinkEntry(item, formTag);
         row.querySelector(".ex-add").textContent = "추가됨";

@@ -60,6 +60,8 @@ async function init() {
   initSettings();
   initExplore();
   initPlayer();
+  initPlaylists();
+  renderWeeklyBrief();
   renderFilters();
   render();
 }
@@ -431,6 +433,53 @@ function parseDiscoverResults(text) { // T3: 제목|아티스트|이유|태그
     .map(f => ({ title: f[0], artist: f[1], reason: f[2], tags: f[3].split(",").map(t => t.trim()).filter(Boolean) }));
 }
 
+// ---- 주간 브리핑 캐시 (2026-08-29) ----
+//
+// 방문할 때마다 새 API 호출을 하면 비용도 늘고 원치 않는 자동 호출이 생긴다 — 그래서 "일주일에
+// 한 번, 누르면 생성, 그 결과를 캐시해두고 같은 주엔 계속 보여주기" 방식으로 비용을 통제하면서도
+// 홈 화면이 매주 새로워지게 한다("며칠 쓰면 지루해진다"는 지적과 같은 맥락, decisions.md #46).
+// weekKey는 달력 주 정확도까진 필요 없어서 "연도 + 그 해의 며칠째/7" 정도의 단순 계산으로 충분 —
+// 이 함수는 recommend()류와 달리 순수성/테스트 대상이 아니라 실제 벽시계 시간을 다루는 게 목적이라
+// new Date()를 직접 쓴다(이미 todayStr()도 같은 방식).
+const LS_WEEKLY_BRIEF = "mma_weekly_brief";
+
+function currentWeekKey() {
+  const d = new Date();
+  const start = new Date(d.getFullYear(), 0, 1);
+  const days = Math.floor((d - start) / 86400000);
+  return `${d.getFullYear()}-w${Math.floor(days / 7)}`;
+}
+
+function loadWeeklyBrief() { try { return JSON.parse(localStorage.getItem(LS_WEEKLY_BRIEF)); } catch { return null; } }
+function saveWeeklyBrief(obj) { localStorage.setItem(LS_WEEKLY_BRIEF, JSON.stringify(obj)); }
+
+function renderWeeklyBrief() {
+  const body = document.getElementById("weekly-brief-body");
+  if (!body) return;
+  const cached = loadWeeklyBrief();
+  const isFresh = cached && cached.weekKey === currentWeekKey();
+  body.innerHTML = isFresh
+    ? `<p class="ex-raw">${linkify(cached.text)}</p><button type="button" id="weekly-brief-refresh" class="ex-add">다시 생성</button>`
+    : `<p class="count">이번 주 소식이 아직 없습니다.</p><button type="button" id="weekly-brief-refresh" class="ex-add">생성하기</button>`;
+  document.getElementById("weekly-brief-refresh").addEventListener("click", generateWeeklyBrief);
+}
+
+async function generateWeeklyBrief() {
+  const body = document.getElementById("weekly-brief-body");
+  body.innerHTML = '<p class="count">생성 중...</p>';
+  const today = new Date();
+  const weekAgo = new Date(today.getTime() - 7 * 86400000);
+  const fmt = d => d.toISOString().slice(0, 10);
+  const prompt = buildQuery({
+    type: "brief", region: "한국", scope: "전체", period: "any", count: 5,
+    today: todayStr(), hint: `기간: ${fmt(weekAgo)} ~ ${fmt(today)}로 한정`
+  });
+  const { text, error } = await askClaude(prompt);
+  if (error) { body.innerHTML = `<p class="ex-status">${escapeHtml(error)}</p><button type="button" id="weekly-brief-refresh" class="ex-add">다시 시도</button>`; document.getElementById("weekly-brief-refresh").addEventListener("click", generateWeeklyBrief); return; }
+  saveWeeklyBrief({ weekKey: currentWeekKey(), text });
+  renderWeeklyBrief();
+}
+
 // ---- 취향 프로파일 (마일스톤 1.5.6) ----
 //
 // 컬렉션 전체를 AI 프롬프트에 넣을 압축 텍스트로 증류한다.
@@ -471,6 +520,12 @@ function isLocalId(id) {
   return id.startsWith("local-");
 }
 
+// "추천에서 숨기기" — 오늘의 추천에 계속 뜨는 게 싫은 항목을 영구 제외한다 (마일스톤 P, 2026-08-29).
+// excludeIds(오늘 들은 것)와는 다른 층 — 이건 하루 지나도 안 돌아온다.
+const LS_HIDDEN = "mma_hidden_recs";
+function loadHidden() { try { return JSON.parse(localStorage.getItem(LS_HIDDEN)) || []; } catch { return []; } }
+function saveHidden(list) { localStorage.setItem(LS_HIDDEN, JSON.stringify(list)); }
+
 // 아트 타일 (Phase 2) — 앨범아트 데이터가 없으므로 id 해시로 결정적 그라디언트 생성.
 // 같은 엔트리는 항상 같은 색 (해시 기반이라 새로고침해도 안 바뀜).
 function artTile(entry) {
@@ -480,29 +535,42 @@ function artTile(entry) {
   return `<div class="art" aria-hidden="true" style="background:linear-gradient(135deg, hsl(${h},38%,46%), hsl(${h2},45%,30%))">${escapeHtml(initial)}</div>`;
 }
 
-function renderCard(entry) {
+// 카드 접힘/펼침 상태 — 컬렉션이 늘어날수록 항상 펼친 카드는 스크롤 피로가 커진다는
+// 지적(2026-08-29)에 대한 답. 세션 동안만 기억(새로고침하면 초기화, localStorage까진 불필요).
+// "오늘의 추천"(forceExpanded)은 3개뿐이라 계속 펼친 채로 — 접었다 펴는 수고가 오히려 손해.
+const expandedIds = new Set();
+
+function renderCard(entry, opts = {}) {
+  const expanded = opts.forceExpanded || expandedIds.has(entry.id);
   const card = document.createElement("div");
-  card.className = "card";
+  card.className = "card" + (expanded ? " is-expanded" : "");
   const local = isLocalId(entry.id);
+  const subLine = [entry.credits.performer, INTENT_LABELS[entry.intent] || entry.intent].filter(Boolean).join(" · ");
   card.innerHTML = `
-    ${artTile(entry)}
-    <div class="card-body">
-    <div class="card-top">
+    <div class="card-row" role="button" tabindex="0" aria-expanded="${expanded}"
+         style="border-left:3px solid var(--intent-${entry.intent})">
+      ${artTile(entry)}
+      <div class="card-row-text">
+        <b class="card-row-title">${escapeHtml(entry.title)}</b>
+        <span class="card-row-sub">${escapeHtml(subLine)}</span>
+      </div>
+      ${opts.forceExpanded ? "" : `<span class="card-chevron" aria-hidden="true">▾</span>`}
+    </div>
+    <div class="card-detail" ${expanded ? "" : "hidden"}>
       <span class="intent-tag intent-${entry.intent}">${INTENT_LABELS[entry.intent] || entry.intent}</span>
-      <h3>${escapeHtml(entry.title)}</h3>
-    </div>
-    <p class="credits">${escapeHtml(formatCredits(entry.credits))}</p>
-    <div class="tags">${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>
-    <p class="note" data-note>${entry.note ? escapeHtml(entry.note) : '<span class="muted">메모 없음</span>'}</p>
-    ${renderLinksHtml(entry) ? `<p class="entry-links">${renderLinksHtml(entry)}</p>` : ""}
-    ${listenSummary(entry.id) ? `<p class="listen-summary">${escapeHtml(listenSummary(entry.id))}</p>` : ""}
-    <div class="card-actions">
-      <button class="listen-btn" type="button">들었음</button>
-      <button class="edit-note-btn" type="button">메모 편집</button>
-      <button class="ask-ai-btn" type="button">AI에게 물어보기</button>
-      <button class="find-links-btn" type="button">링크 찾기</button>
-      ${local ? '<button class="delete-btn" type="button">삭제</button>' : ""}
-    </div>
+      <p class="credits">${escapeHtml(formatCredits(entry.credits))}</p>
+      <div class="tags">${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>
+      <p class="note" data-note>${entry.note ? escapeHtml(entry.note) : '<span class="muted">메모 없음</span>'}</p>
+      ${renderLinksHtml(entry) ? `<p class="entry-links">${renderLinksHtml(entry)}</p>` : ""}
+      ${listenSummary(entry.id) ? `<p class="listen-summary">${escapeHtml(listenSummary(entry.id))}</p>` : ""}
+      <div class="card-actions">
+        <button class="listen-btn" type="button">들었음</button>
+        <button class="edit-note-btn" type="button">메모 편집</button>
+        <button class="ask-ai-btn" type="button">AI에게 물어보기</button>
+        <button class="find-links-btn" type="button">링크 찾기</button>
+        ${opts.forceExpanded ? '<button class="hide-rec-btn" type="button">추천에서 숨기기</button>' : ""}
+        ${local ? '<button class="delete-btn" type="button">삭제</button>' : ""}
+      </div>
     </div>
   `;
   card.querySelector(".listen-btn").addEventListener("click", () => logListen(entry.id));
@@ -511,6 +579,22 @@ function renderCard(entry) {
   card.querySelector(".find-links-btn").addEventListener("click", () => startFindLinks(card, entry));
   if (local) {
     card.querySelector(".delete-btn").addEventListener("click", () => deleteLocalEntry(entry.id));
+  }
+  if (opts.forceExpanded) {
+    card.querySelector(".hide-rec-btn").addEventListener("click", () => {
+      const hidden = loadHidden();
+      hidden.push(entry.id);
+      saveHidden(hidden);
+      render();
+    });
+  } else {
+    const row = card.querySelector(".card-row");
+    const toggle = () => {
+      if (expandedIds.has(entry.id)) expandedIds.delete(entry.id); else expandedIds.add(entry.id);
+      render();
+    };
+    row.addEventListener("click", toggle);
+    row.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } });
   }
   return card;
 }
@@ -545,7 +629,7 @@ function startAskAI(card, entry) {
     <p class="ask-ai-result" hidden></p>
     <button type="button" class="ask-ai-save" hidden>메모에 저장</button>
   `;
-  card.appendChild(box);
+  card.querySelector(".card-detail").appendChild(box);
 
   const input = box.querySelector(".ask-ai-input");
   box.querySelectorAll(".ask-ai-presets button").forEach(btn => {
@@ -641,13 +725,14 @@ function renderRecommend(merged) {
   const box = document.getElementById("recommend-list");
   const heading = document.getElementById("recommend-heading");
   if (!box) return; // index.html에 아직 섹션이 없으면 조용히 건너뜀
-  const excludeIds = logs.filter(l => l.date === todayStr()).map(l => l.entryId);
+  const todayIds = logs.filter(l => l.date === todayStr()).map(l => l.entryId);
+  const excludeIds = [...todayIds, ...loadHidden()]; // 오늘 들은 것 + 영구적으로 "숨기기"한 것
   const picks = recommend(merged, [...activeTags], { limit: 3, excludeIds, daySeed: todayStr() });
   heading.textContent = activeTags.size > 0
     ? `"${[...activeTags].join(", ")}" 태그 추천`
-    : "오늘의 추천 (취향 · 교양 · 가족 골고루, 오늘 들은 건 뒤로)";
+    : "오늘의 추천 (취향 · 교양 · 가족 골고루, 매일 조금씩 바뀜)";
   box.innerHTML = "";
-  picks.forEach(entry => box.appendChild(renderCard(entry)));
+  picks.forEach(entry => box.appendChild(renderCard(entry, { forceExpanded: true })));
 }
 
 function renderFilters() {
@@ -874,6 +959,29 @@ function startQueue() {
   openPlayerWithQueue(queue);
 }
 
+// ---- YouTube 앱으로 넘기기 (2026-08-29) ----
+//
+// 우리 임베드 플레이어는 화면이 켜져 있어야만 재생된다(YouTube 정책 — 무료 계정은 백그라운드
+// 재생이 Premium 전용, 우리 임베드로 우회할 방법도 없고 시도하지 않는다). 진짜 다른 앱으로
+// 전환하면서 계속 듣고 싶을 때의 현실적인 답은 "진짜 YouTube 앱에 넘기는 것" —
+// watch_videos?video_ids=id1,id2,... 는 로그인 없이도 여러 영상을 임시 재생목록으로 열어준다.
+function openInYoutubeApp(queue, fromIndex = 0) {
+  const ids = queue.slice(fromIndex).map(q => q.videoId).filter(Boolean);
+  if (ids.length === 0) return;
+  window.open("https://www.youtube.com/watch_videos?video_ids=" + ids.join(","), "_blank", "noopener");
+}
+
+function startQueueInYoutubeApp() {
+  const statusEl = document.getElementById("play-status");
+  const queue = buildPlayQueue();
+  if (queue.length === 0) {
+    statusEl.textContent = "재생할 유튜브 링크가 없습니다 — 카드의 \"링크 찾기\"나 탐구(들을·볼 것 찾기)로 먼저 채워주세요.";
+    return;
+  }
+  statusEl.textContent = "";
+  openInYoutubeApp(queue, 0);
+}
+
 // 검색 결과 후보를 저장 전에 바로 들어보기 — 아직 엔트리가 아니면 preview 플래그로 로그 제외
 function previewVideo(item, entry) {
   const videoId = youtubeIdFrom(item.url);
@@ -884,8 +992,10 @@ function previewVideo(item, entry) {
 
 function initPlayer() {
   document.getElementById("play-all").addEventListener("click", startQueue);
+  document.getElementById("play-all-yt").addEventListener("click", startQueueInYoutubeApp);
   document.getElementById("pl-prev").addEventListener("click", prevTrack);
   document.getElementById("pl-next").addEventListener("click", nextTrack);
+  document.getElementById("pl-open-yt").addEventListener("click", () => openInYoutubeApp(playQueue, playIndex));
   document.getElementById("pl-close").addEventListener("click", stopPlayer);
   document.getElementById("pl-dark").addEventListener("click", () => {
     document.getElementById("play-mode").hidden = false;
@@ -901,19 +1011,133 @@ function initPlayer() {
   });
 }
 
+// ---- 플레이리스트 관리 (마일스톤 P4, 2026-08-29) ----
+//
+// "한번 리스트 만들면 저장·수정이 가능해야" — 지금 보고 있는 필터 결과를 이름 붙여 저장해두고,
+// 나중에 그대로 다시 재생할 수 있게 한다. 기존 3레이어(seed/overrides/local) 패턴과 같은 자리에
+// localStorage로 저장 — entryId 목록만 들고 있고, 실제 엔트리 데이터는 그때그때 mergedEntries()에서
+// 찾아온다(플레이리스트가 데이터를 중복 보관하지 않음 — 엔트리가 나중에 수정돼도 리스트가 따라감).
+
+const LS_PLAYLISTS = "mma_playlists";
+let playlists = [];
+
+function loadPlaylists() { try { return JSON.parse(localStorage.getItem(LS_PLAYLISTS)) || []; } catch { return []; } }
+function savePlaylists(list) { localStorage.setItem(LS_PLAYLISTS, JSON.stringify(list)); }
+
+function playlistQueue(pl) {
+  const byId = new Map(mergedEntries().map(e => [e.id, e]));
+  return pl.entryIds
+    .map(id => byId.get(id))
+    .filter(Boolean)
+    .map(entry => ({ entry, videoId: firstYoutubeId(entry) }))
+    .filter(x => x.videoId);
+}
+
+function renderPlaylists() {
+  const box = document.getElementById("playlist-list");
+  if (!box) return;
+  box.innerHTML = "";
+  if (playlists.length === 0) {
+    box.innerHTML = '<p class="count">아직 저장한 리스트가 없습니다 — 아래 "내 컬렉션"에서 필터를 고르고 "이 목록을 리스트로 저장"을 눌러보세요.</p>';
+    return;
+  }
+  playlists.forEach(pl => {
+    const row = document.createElement("div");
+    row.className = "playlist-row";
+    row.innerHTML = `
+      <div class="playlist-row-main">
+        <b class="playlist-name">${escapeHtml(pl.name)}</b>
+        <span class="ex-item-sub">${pl.entryIds.length}곡</span>
+      </div>
+      <button type="button" class="pl-play" aria-label="재생">▶</button>
+      <button type="button" class="pl-play-yt">YT 앱</button>
+      <button type="button" class="pl-rename">이름변경</button>
+      <button type="button" class="pl-delete">삭제</button>
+    `;
+    row.querySelector(".pl-play").addEventListener("click", () => {
+      const queue = playlistQueue(pl);
+      if (queue.length === 0) { document.getElementById("play-status").textContent = "이 리스트엔 재생 가능한 링크가 없습니다."; return; }
+      openPlayerWithQueue(queue);
+    });
+    row.querySelector(".pl-play-yt").addEventListener("click", () => {
+      const queue = playlistQueue(pl);
+      if (queue.length === 0) { document.getElementById("play-status").textContent = "이 리스트엔 재생 가능한 링크가 없습니다."; return; }
+      openInYoutubeApp(queue, 0);
+    });
+    row.querySelector(".pl-rename").addEventListener("click", () => {
+      const nameEl = row.querySelector(".playlist-name");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = pl.name;
+      input.className = "ex-hint";
+      nameEl.replaceWith(input);
+      input.focus();
+      input.select();
+      const commit = () => {
+        pl.name = input.value.trim() || pl.name;
+        savePlaylists(playlists);
+        renderPlaylists();
+      };
+      input.addEventListener("blur", commit);
+      input.addEventListener("keydown", e => { if (e.key === "Enter") input.blur(); });
+    });
+    row.querySelector(".pl-delete").addEventListener("click", (e) => {
+      const btn = e.currentTarget;
+      if (btn.dataset.confirm !== "1") {
+        btn.dataset.confirm = "1";
+        btn.textContent = "정말 삭제?";
+        setTimeout(() => { btn.dataset.confirm = ""; btn.textContent = "삭제"; }, 3000);
+        return;
+      }
+      playlists = playlists.filter(p => p.id !== pl.id);
+      savePlaylists(playlists);
+      renderPlaylists();
+    });
+    box.appendChild(row);
+  });
+}
+
+function initPlaylists() {
+  playlists = loadPlaylists();
+  renderPlaylists();
+
+  const saveBox = document.getElementById("save-playlist-box");
+  const nameInput = document.getElementById("pl-name-input");
+
+  document.getElementById("save-playlist").addEventListener("click", () => {
+    saveBox.hidden = !saveBox.hidden;
+    if (!saveBox.hidden) nameInput.focus();
+  });
+
+  document.getElementById("pl-name-save").addEventListener("click", () => {
+    const name = nameInput.value.trim();
+    if (!name) return;
+    const ids = mergedEntries().filter(matchesFilters).map(e => e.id);
+    if (ids.length === 0) {
+      document.getElementById("play-status").textContent = "저장할 항목이 없습니다 — 필터 결과가 비어 있습니다.";
+      return;
+    }
+    playlists.push({ id: "pl-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7), name, entryIds: ids, createdAt: todayStr() });
+    savePlaylists(playlists);
+    nameInput.value = "";
+    saveBox.hidden = true;
+    renderPlaylists();
+  });
+}
+
 // ---- 링크 찾기 (P1, decisions.md #41) — 엔트리별 T1 쿼리 자동 실행 ----
 
 // 카드를 통째로 다시 그리지 않고(render()) 그 카드의 링크 표시만 즉석에서 갱신한다.
 // render()를 부르면 지금 열려 있는 "링크 찾기" 결과 박스까지 같이 사라져서, 어디에 뭘 붙였는지
 // 확인이 안 되던 문제(2026-08-29, Nick 리포트)의 원인이었다 — 그 자리에서 바로 보이게 고쳤다.
 function patchCardLinks(card, entry) {
-  let box = card.querySelector(".card-body .entry-links");
+  let box = card.querySelector(".card-detail .entry-links");
   const html = renderLinksHtml(entry);
   if (!html) return;
   if (!box) {
     box = document.createElement("p");
     box.className = "entry-links";
-    card.querySelector(".card-body [data-note]").insertAdjacentElement("afterend", box);
+    card.querySelector(".card-detail [data-note]").insertAdjacentElement("afterend", box);
   }
   box.innerHTML = html;
 }
@@ -965,7 +1189,7 @@ function startFindLinks(card, entry) {
     <p class="ask-ai-result">유튜브에서 찾는 중...</p>
     <button type="button" class="ask-ai-cancel" style="align-self:flex-start">닫기</button>
   `;
-  card.appendChild(box);
+  card.querySelector(".card-detail").appendChild(box);
   box.querySelector(".ask-ai-cancel").addEventListener("click", () => box.remove());
 
   const resultEl = box.querySelector(".ask-ai-result");
@@ -1262,7 +1486,74 @@ function renderExploreResults(text) {
   }
 }
 
+// ---- 탐구 프리셋 저장 (2026-08-29) ----
+//
+// 매번 Step1~4를 다시 고르지 않아도 되게, 조립된 최종 쿼리 문장을 이름 붙여 저장해둔다.
+// 원본 선택지(sel 객체)가 아니라 "완성된 문장"을 저장하는 이유: T1~T4마다 sel의 모양이
+// 다 달라서 그대로 저장하면 복원 로직이 유형별로 갈라지는데, 완성 문장 하나면 재실행이 단순해진다.
+// native(T1이 유튜브 직접검색 경로였는지)만 별도로 기억해서 재실행 때 같은 경로를 타게 한다.
+const LS_EX_PRESETS = "mma_ex_presets";
+let exPresets = [];
+
+function loadExPresets() { try { return JSON.parse(localStorage.getItem(LS_EX_PRESETS)) || []; } catch { return []; } }
+function saveExPresets(list) { localStorage.setItem(LS_EX_PRESETS, JSON.stringify(list)); }
+
+async function runExPreset(p) {
+  const statusEl = document.getElementById("ex-status");
+  const resultsEl = document.getElementById("ex-results");
+  const preview = document.getElementById("ex-preview");
+  exType = p.type;
+  preview.value = p.prompt;
+  preview.hidden = false;
+  resultsEl.innerHTML = "";
+
+  if (p.native && loadYtKey()) {
+    statusEl.textContent = "유튜브에서 찾는 중...";
+    const { items, error } = await searchYouTube(p.prompt, { maxResults: 10 });
+    if (error) { statusEl.textContent = error; return; }
+    statusEl.textContent = "";
+    renderExploreLinkItems(items);
+    return;
+  }
+  statusEl.textContent = "물어보는 중...";
+  const { text, error } = await askClaude(p.prompt);
+  if (error) { statusEl.textContent = error; return; }
+  statusEl.textContent = "";
+  renderExploreResults(text);
+}
+
+function renderExPresets() {
+  const box = document.getElementById("ex-presets");
+  if (!box) return;
+  box.innerHTML = "";
+  exPresets.forEach(p => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.innerHTML = `★ ${escapeHtml(p.name)} <span class="ex-preset-x">×</span>`;
+    btn.addEventListener("click", (e) => {
+      if (e.target.classList.contains("ex-preset-x")) {
+        e.stopPropagation();
+        if (btn.dataset.confirm !== "1") {
+          btn.dataset.confirm = "1";
+          e.target.textContent = "삭제?";
+          setTimeout(() => { btn.dataset.confirm = ""; e.target.textContent = "×"; }, 3000);
+          return;
+        }
+        exPresets = exPresets.filter(x => x.id !== p.id);
+        saveExPresets(exPresets);
+        renderExPresets();
+        return;
+      }
+      runExPreset(p);
+    });
+    box.appendChild(btn);
+  });
+}
+
 function initExplore() {
+  exPresets = loadExPresets();
+  renderExPresets();
+
   const typeBar = document.getElementById("ex-type");
   typeBar.innerHTML = EX_TYPES
     .map(t => `<button data-extype="${t.key}">${t.label}</button>`)
@@ -1297,6 +1588,28 @@ function initExplore() {
     }
     preview.hidden = false;
     sendBtn.hidden = false;
+    document.getElementById("ex-save-preset").hidden = false;
+  });
+
+  const presetSaveBox = document.getElementById("ex-save-preset-box");
+  const presetNameInput = document.getElementById("ex-preset-name");
+  document.getElementById("ex-save-preset").addEventListener("click", () => {
+    presetSaveBox.hidden = !presetSaveBox.hidden;
+    if (!presetSaveBox.hidden) presetNameInput.focus();
+  });
+  document.getElementById("ex-preset-name-save").addEventListener("click", () => {
+    const name = presetNameInput.value.trim();
+    const prompt = preview.value.trim();
+    if (!name || !prompt) return;
+    exPresets.push({
+      id: "exp-" + Date.now() + "-" + Math.random().toString(36).slice(2, 7),
+      name, type: exType, prompt,
+      native: exType === "links" && !!exNative && !!loadYtKey()
+    });
+    saveExPresets(exPresets);
+    presetNameInput.value = "";
+    presetSaveBox.hidden = true;
+    renderExPresets();
   });
 
   sendBtn.addEventListener("click", async () => {

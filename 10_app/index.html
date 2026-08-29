@@ -44,8 +44,14 @@
     <div id="recommend-list" class="entry-list"></div>
   </section>
 
+  <section class="weekly-brief reveal">
+    <h2>이번 주 소식</h2>
+    <div id="weekly-brief-body"></div>
+  </section>
+
   <section class="explore-ai reveal">
     <h2>탐구 — 무엇을 알고 싶나요?</h2>
+    <div id="ex-presets" class="filter-row"></div>
     <div id="ex-type" class="filter-row"></div>
     <div id="ex-controls" class="ex-controls"></div>
     <div id="ex-freebox" hidden>
@@ -55,10 +61,20 @@
     <div class="ex-actions">
       <button id="ex-build" type="button" hidden>쿼리 문장 만들기</button>
       <button id="ex-send" type="button" hidden>전송</button>
+      <button id="ex-save-preset" type="button" hidden>★ 이 질문 저장</button>
+    </div>
+    <div id="ex-save-preset-box" class="ex-preset-save-box" hidden>
+      <input id="ex-preset-name" class="ex-hint" placeholder="이 질문 이름 (예: 월요일 브리핑)">
+      <button id="ex-preset-name-save" type="button">저장</button>
     </div>
     <textarea id="ex-preview" class="ex-preview" hidden></textarea>
     <p id="ex-status" class="ex-status"></p>
     <div id="ex-results" class="ex-results"></div>
+  </section>
+
+  <section class="playlists reveal">
+    <h2>내 리스트</h2>
+    <div id="playlist-list"></div>
   </section>
 
   <section class="tools reveal">
@@ -68,10 +84,16 @@
 
     <div class="actions">
       <button id="play-all" type="button">▶ 지금 목록 재생</button>
+      <button id="play-all-yt" type="button">YouTube 앱에서 재생</button>
+      <button id="save-playlist" type="button">이 목록을 리스트로 저장</button>
       <button id="add-toggle" type="button">+ 새 항목 추가</button>
       <button id="export-toggle" type="button">내보내기</button>
     </div>
     <p id="play-status" class="count"></p>
+    <div id="save-playlist-box" class="add-form" hidden>
+      <input id="pl-name-input" placeholder="리스트 이름 (예: 출근길)">
+      <button id="pl-name-save" type="button">저장</button>
+    </div>
 
     <div id="add-form" class="add-form" hidden>
       <input id="f-title" placeholder="제목 (곡명/아티스트명)">
@@ -111,6 +133,7 @@
         <button id="pl-prev" type="button" aria-label="이전 곡">⏮</button>
         <button id="pl-next" type="button" aria-label="다음 곡">⏭</button>
         <button id="pl-dark" type="button" aria-label="절전 화면">🌙</button>
+        <button id="pl-open-yt" type="button" aria-label="YouTube 앱에서 이어듣기" title="YouTube 앱에서 이어듣기">YT</button>
         <button id="pl-close" type="button" aria-label="플레이어 닫기">✕</button>
       </div>
     </div>

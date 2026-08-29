@@ -177,7 +177,7 @@ h1, h2, h3 { font-weight: 700; color: var(--text); }
 /* ---- 섹션 패널 (글래스) ---- */
 
 section { margin-bottom: 1rem; }
-.recommend, .explore-ai, .tools {
+.recommend, .explore-ai, .tools, .weekly-brief, .playlists {
   background: var(--glass);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
@@ -186,46 +186,67 @@ section { margin-bottom: 1rem; }
   padding: 0.95rem 1.05rem;
   box-shadow: var(--shadow);
 }
-.recommend h2, .explore-ai h2, .tools h2 {
+.recommend h2, .explore-ai h2, .tools h2, .weekly-brief h2, .playlists h2 {
   font-size: 0.98rem;
   margin: 0 0 0.65rem;
 }
 
-/* ---- 카드 + 아트 타일 ---- */
+/* ---- 카드: 한 줄(접힘) + 펼침 (2026-08-29, 컬렉션이 늘어도 스캔하기 쉽게) ---- */
 
-.entry-list { display: flex; flex-direction: column; gap: 0.6rem; }
+.entry-list { display: flex; flex-direction: column; gap: 0.5rem; }
 
 .card {
-  display: grid;
-  grid-template-columns: 3.2rem 1fr;
-  gap: 0.75rem;
   background: var(--glass);
   -webkit-backdrop-filter: blur(14px);
   backdrop-filter: blur(14px);
   border: 1px solid var(--glass-border);
   border-radius: var(--radius);
-  padding: 0.8rem 0.95rem;
   box-shadow: var(--shadow-soft);
-  transition: transform 0.15s, box-shadow 0.15s;
+  transition: box-shadow 0.15s;
+  overflow: hidden;
 }
-.card:hover { transform: translateY(-1px); box-shadow: var(--shadow); }
+.card:hover { box-shadow: var(--shadow); }
 
+.card-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.55rem 0.85rem;
+  cursor: pointer;
+}
+.card-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.card.is-expanded .card-row { padding-bottom: 0.25rem; }
+
+.card-row .art {
+  width: 2.5rem;
+  height: 2.5rem;
+  font-size: 1rem;
+}
 .art {
-  width: 3.2rem;
-  height: 3.2rem;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   color: rgba(255, 255, 255, 0.92);
-  font-size: 1.2rem;
   font-weight: 700;
-  align-self: start;
+  flex: 0 0 auto;
   user-select: none;
 }
 
-.card-body { min-width: 0; }
-.card-top { display: flex; align-items: baseline; gap: 0.45rem; flex-wrap: wrap; }
+.card-row-text { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.05rem; }
+.card-row-title {
+  font-size: 0.92rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-row-sub {
+  font-size: 0.74rem; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.card-chevron {
+  color: var(--text-muted); font-size: 0.65rem; flex: 0 0 auto; transition: transform 0.15s;
+}
+.card.is-expanded .card-chevron { transform: rotate(180deg); }
+
+.card-detail { padding: 0 0.85rem 0.8rem; }
+.card-detail > .intent-tag { margin-bottom: 0.3rem; display: inline-block; }
 .card-top h3 { margin: 0; font-size: 0.98rem; }
 
 .intent-tag {
@@ -469,6 +490,42 @@ section { margin-bottom: 1rem; }
 .ex-raw { font-size: 0.84rem; white-space: pre-wrap; word-break: break-word; margin: 0.3rem 0; }
 .ex-raw a { color: var(--accent); }
 
+.ex-preset-x {
+  margin-left: 0.3rem; color: var(--text-muted); font-weight: 700;
+}
+.ex-preset-save-box {
+  display: flex; gap: 0.4rem; margin-bottom: 0.5rem;
+}
+.ex-preset-save-box input { flex: 1; margin-bottom: 0; }
+
+/* ---- 리스트(플레이리스트) ---- */
+
+.playlist-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.75rem;
+  margin-bottom: 0.4rem;
+  background: var(--glass-strong);
+}
+.playlist-row-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 0.1rem; }
+.playlist-row-main b { font-size: 0.9rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.playlist-row button {
+  border: none;
+  background: var(--glass);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 0.22rem 0.55rem;
+  font-size: 0.72rem;
+  font-family: inherit;
+  cursor: pointer;
+  flex: 0 0 auto;
+  box-shadow: var(--shadow-soft);
+}
+.playlist-row .pl-play { background: var(--accent); color: #fff; }
+
 /* ---- AI 질문 박스 (카드 내) ---- */
 
 .ask-ai-box {
@@ -578,6 +635,13 @@ section { margin-bottom: 1rem; }
   font-size: 0.85rem;
   cursor: pointer;
   box-shadow: var(--shadow-soft);
+}
+#pl-open-yt {
+  width: auto;
+  padding: 0 0.6rem;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: "IBM Plex Mono", monospace;
 }
 
 body.has-player { padding-bottom: 21rem; }

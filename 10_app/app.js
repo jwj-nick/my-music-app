@@ -1159,8 +1159,16 @@ function attachLinkToEntry(entry, link, card) {
   if (card) patchCardLinks(card, entry);
 }
 
-function renderLinkCandidates(box, items, entry, card) {
-  items.forEach(item => {
+// 결과를 한 번에 다 보여주지 않고 10개씩 "더 보기"로 — 그래도 API 호출은 이미 끝난 뒤라
+// 추가 비용이 없다. YouTube API는 한 번 호출에 최대 50개까지 오고 요청 개수와 무관하게
+// 같은 비용(검색 1회 = 100 유닛)이라, 애초에 넉넉히 받아두고 화면에서만 나눠 보여주는 게
+// "더 보기"를 API 재호출 없이 구현하는 가장 저렴한 방법이다 (2026-08-29).
+function renderLinkCandidates(box, items, entry, card, pageSize = 10) {
+  const cancelBtn = box.querySelector(".ask-ai-cancel");
+  let shown = 0;
+  let moreBtn = null;
+
+  function addRow(item) {
     const row = document.createElement("div");
     row.className = "ex-item ex-item--compact";
     row.innerHTML = `
@@ -1176,8 +1184,27 @@ function renderLinkCandidates(box, items, entry, card) {
       row.querySelector(".ex-add").textContent = "✓ 카드에 추가됨";
       row.querySelector(".ex-add").disabled = true;
     });
-    box.insertBefore(row, box.querySelector(".ask-ai-cancel"));
-  });
+    box.insertBefore(row, moreBtn || cancelBtn);
+  }
+
+  function showMore() {
+    const next = items.slice(shown, shown + pageSize);
+    next.forEach(addRow);
+    shown += next.length;
+    if (moreBtn) {
+      if (shown >= items.length) { moreBtn.remove(); moreBtn = null; }
+      else moreBtn.textContent = `더 보기 (${items.length - shown}개 더)`;
+    }
+  }
+
+  if (items.length > pageSize) {
+    moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "ex-add";
+    box.insertBefore(moreBtn, cancelBtn);
+    moreBtn.addEventListener("click", showMore);
+  }
+  showMore();
 }
 
 function startFindLinks(card, entry) {
@@ -1200,7 +1227,7 @@ function startFindLinks(card, entry) {
 
   if (loadYtKey()) {
     // 기본 경로: YouTube 자체 검색 — 유튜브에서 직접 검색하는 것과 같은 품질 (decisions.md #42)
-    searchYouTube(query, { maxResults: 10 }).then(({ items, error }) => {
+    searchYouTube(query, { maxResults: 25 }).then(({ items, error }) => {
       if (error) { resultEl.textContent = error; return; }
       if (!items.length) { resultEl.textContent = "검색 결과가 없습니다."; return; }
       resultEl.remove();
@@ -1415,7 +1442,8 @@ function exAddDiscoverEntry(item) {
   render();
 }
 
-function renderExploreLinkItems(items) {
+// pageSize 기본 10 — 링크찾기 카드와 같은 "더 보기" 방식(renderLinkCandidates 참고).
+function renderExploreLinkItems(items, pageSize = 10) {
   const box = document.getElementById("ex-results");
   box.innerHTML = "";
   const formEl = document.getElementById("ex-form");
@@ -1424,7 +1452,11 @@ function renderExploreLinkItems(items) {
     box.innerHTML = '<p class="ex-raw">결과가 없습니다.</p>';
     return;
   }
-  items.forEach(item => {
+
+  let shown = 0;
+  let moreBtn = null;
+
+  function addRow(item) {
     const row = document.createElement("div");
     row.className = "ex-item ex-item--compact";
     const canPreview = !!youtubeIdFrom(item.url);
@@ -1442,8 +1474,27 @@ function renderExploreLinkItems(items) {
       row.querySelector(".ex-add").textContent = "추가됨";
       row.querySelector(".ex-add").disabled = true;
     });
-    box.appendChild(row);
-  });
+    box.insertBefore(row, moreBtn);
+  }
+
+  function showMore() {
+    const next = items.slice(shown, shown + pageSize);
+    next.forEach(addRow);
+    shown += next.length;
+    if (moreBtn) {
+      if (shown >= items.length) { moreBtn.remove(); moreBtn = null; }
+      else moreBtn.textContent = `더 보기 (${items.length - shown}개 더)`;
+    }
+  }
+
+  if (items.length > pageSize) {
+    moreBtn = document.createElement("button");
+    moreBtn.type = "button";
+    moreBtn.className = "ex-add";
+    box.appendChild(moreBtn);
+    moreBtn.addEventListener("click", showMore);
+  }
+  showMore();
 }
 
 function renderExploreResults(text) {
@@ -1509,7 +1560,7 @@ async function runExPreset(p) {
 
   if (p.native && loadYtKey()) {
     statusEl.textContent = "유튜브에서 찾는 중...";
-    const { items, error } = await searchYouTube(p.prompt, { maxResults: 10 });
+    const { items, error } = await searchYouTube(p.prompt, { maxResults: 25 });
     if (error) { statusEl.textContent = error; return; }
     statusEl.textContent = "";
     renderExploreLinkItems(items);
@@ -1624,11 +1675,13 @@ function initExplore() {
       const publishedAfter =
         exNative.period === "1y" ? shiftYears(todayStr(), -1) + "T00:00:00Z" :
         exNative.period === "3y" ? shiftYears(todayStr(), -3) + "T00:00:00Z" : undefined;
-      const { items, error } = await searchYouTube(q, { maxResults: exNative.count || 10, publishedAfter });
+      // 화면엔 사용자가 고른 개수(exNative.count)만큼만 먼저 보여주고, API에는 항상 넉넉히
+      // 요청해서(최소 25) "더 보기"를 눌러도 재호출 없이 바로 나오게 한다.
+      const { items, error } = await searchYouTube(q, { maxResults: Math.max(exNative.count || 10, 25), publishedAfter });
       if (error) { statusEl.textContent = error; return; }
       statusEl.textContent = "";
       items.forEach(it => { it.artist = exNative.target; });
-      renderExploreLinkItems(items);
+      renderExploreLinkItems(items, exNative.count || 10);
       return;
     }
 

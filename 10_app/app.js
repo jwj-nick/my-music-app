@@ -234,10 +234,25 @@ function mergedEntries() {
 
 // ---- 표시 로직 ----
 
-function spotifyLink(entry) {
-  if (entry.spotifyUrl) return entry.spotifyUrl;
-  const query = [entry.credits.performer, entry.title].filter(Boolean).join(" ");
-  return "https://open.spotify.com/search/" + encodeURIComponent(query);
+// 재생/시청 링크 표시 — Spotify는 실제 URL이 있을 때만 보여준다(2026-08-29).
+// 예전엔 없으면 검색 페이지로 뭉뚱그려 보냈는데, Nick 실사용에서 "안 쓸 거고 불필요"로 확인 —
+// YouTube 재생(P2)이 기본 동선이 된 지금은 Spotify가 있으면 보너스로만 노출하는 보조 링크.
+function renderLinksHtml(entry) {
+  const parts = [];
+  if (entry.spotifyUrl) {
+    parts.push(`<a href="${escapeHtml(entry.spotifyUrl)}" target="_blank" rel="noopener">Spotify</a>`);
+  }
+  (entry.links || []).forEach(l => {
+    parts.push(`<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">▶ ${escapeHtml(l.label || "링크")}</a>`);
+  });
+  return parts.join(" ");
+}
+
+// 문자열 해시 — 아트 타일 색과 "오늘의 추천" 로테이션이 같은 방식을 쓴다(둘 다 결정적이어야 함).
+function hashString(str) {
+  let h = 0;
+  for (const ch of str) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h;
 }
 
 function formatCredits(c) {
@@ -275,6 +290,11 @@ function matchesFilters(entry) {
 //   호출하는 쪽(renderRecommend)에서 "오늘"을 계산해 넘겨준다 — 그래야 recommend 자체는
 //   여전히 순수 함수로 남아 테스트가 가능하다. 제외했더니 후보가 없으면 원래 pool로 되돌아간다
 //   (추천 칸이 비어 보이는 것보다는 중복이라도 보여주는 게 낫다).
+// opts.daySeed: "오늘의 추천"이 매일 같은 3개만 나오면 며칠 만에 지루해진다는 지적(2026-08-29)에
+//   대한 답 — intent별 후보군 안에서 daySeed(보통 오늘 날짜 문자열)로 결정적으로 로테이션한다.
+//   Math.random을 안 쓰는 이유는 여전히 같다: 같은 날엔 같은 결과가 나와야 테스트도 되고
+//   하루 안에서 화면을 새로고침해도 추천이 안 흔들려야 한다. daySeed 없으면(테스트 등) 항상
+//   첫 번째 후보 — 기존 동작과 100% 호환.
 function recommend(pool, queryTags = [], opts = {}) {
   const limit = opts.limit || 3;
   const exclude = new Set(opts.excludeIds || []);
@@ -283,10 +303,13 @@ function recommend(pool, queryTags = [], opts = {}) {
     const seen = new Set();
     const picks = [];
     for (const intent of ["taste", "explore", "family"]) {
-      const preferred = pool.find(e => e.intent === intent && !seen.has(e.id) && !exclude.has(e.id));
-      const fallback = pool.find(e => e.intent === intent && !seen.has(e.id));
-      const found = preferred || fallback;
-      if (found) { picks.push(found); seen.add(found.id); }
+      const preferred = pool.filter(e => e.intent === intent && !seen.has(e.id) && !exclude.has(e.id));
+      const fallback = pool.filter(e => e.intent === intent && !seen.has(e.id));
+      const usable = preferred.length > 0 ? preferred : fallback;
+      if (usable.length === 0) continue;
+      const offset = opts.daySeed ? hashString(opts.daySeed + intent) % usable.length : 0;
+      const found = usable[offset];
+      picks.push(found); seen.add(found.id);
     }
     return picks.slice(0, limit);
   }
@@ -451,8 +474,7 @@ function isLocalId(id) {
 // 아트 타일 (Phase 2) — 앨범아트 데이터가 없으므로 id 해시로 결정적 그라디언트 생성.
 // 같은 엔트리는 항상 같은 색 (해시 기반이라 새로고침해도 안 바뀜).
 function artTile(entry) {
-  let h = 0;
-  for (const ch of entry.id) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  const h = hashString(entry.id) % 360;
   const h2 = (h + 40) % 360;
   const initial = (entry.title || "?").replace(/[\s"'(\[]/g, "").charAt(0) || "?";
   return `<div class="art" aria-hidden="true" style="background:linear-gradient(135deg, hsl(${h},38%,46%), hsl(${h2},45%,30%))">${escapeHtml(initial)}</div>`;
@@ -472,11 +494,9 @@ function renderCard(entry) {
     <p class="credits">${escapeHtml(formatCredits(entry.credits))}</p>
     <div class="tags">${entry.tags.map(t => `<span class="tag">${escapeHtml(t)}</span>`).join("")}</div>
     <p class="note" data-note>${entry.note ? escapeHtml(entry.note) : '<span class="muted">메모 없음</span>'}</p>
-    ${(entry.links || []).length ? `<p class="entry-links">${entry.links.map(l =>
-      `<a href="${escapeHtml(l.url)}" target="_blank" rel="noopener">▶ ${escapeHtml(l.label || "링크")}</a>`).join(" ")}</p>` : ""}
+    ${renderLinksHtml(entry) ? `<p class="entry-links">${renderLinksHtml(entry)}</p>` : ""}
     ${listenSummary(entry.id) ? `<p class="listen-summary">${escapeHtml(listenSummary(entry.id))}</p>` : ""}
     <div class="card-actions">
-      <a class="play-btn" href="${spotifyLink(entry)}" target="_blank" rel="noopener">Spotify에서 찾기</a>
       <button class="listen-btn" type="button">들었음</button>
       <button class="edit-note-btn" type="button">메모 편집</button>
       <button class="ask-ai-btn" type="button">AI에게 물어보기</button>
@@ -622,7 +642,7 @@ function renderRecommend(merged) {
   const heading = document.getElementById("recommend-heading");
   if (!box) return; // index.html에 아직 섹션이 없으면 조용히 건너뜀
   const excludeIds = logs.filter(l => l.date === todayStr()).map(l => l.entryId);
-  const picks = recommend(merged, [...activeTags], { limit: 3, excludeIds });
+  const picks = recommend(merged, [...activeTags], { limit: 3, excludeIds, daySeed: todayStr() });
   heading.textContent = activeTags.size > 0
     ? `"${[...activeTags].join(", ")}" 태그 추천`
     : "오늘의 추천 (취향 · 교양 · 가족 골고루, 오늘 들은 건 뒤로)";
@@ -883,7 +903,22 @@ function initPlayer() {
 
 // ---- 링크 찾기 (P1, decisions.md #41) — 엔트리별 T1 쿼리 자동 실행 ----
 
-function attachLinkToEntry(entry, link) {
+// 카드를 통째로 다시 그리지 않고(render()) 그 카드의 링크 표시만 즉석에서 갱신한다.
+// render()를 부르면 지금 열려 있는 "링크 찾기" 결과 박스까지 같이 사라져서, 어디에 뭘 붙였는지
+// 확인이 안 되던 문제(2026-08-29, Nick 리포트)의 원인이었다 — 그 자리에서 바로 보이게 고쳤다.
+function patchCardLinks(card, entry) {
+  let box = card.querySelector(".card-body .entry-links");
+  const html = renderLinksHtml(entry);
+  if (!html) return;
+  if (!box) {
+    box = document.createElement("p");
+    box.className = "entry-links";
+    card.querySelector(".card-body [data-note]").insertAdjacentElement("afterend", box);
+  }
+  box.innerHTML = html;
+}
+
+function attachLinkToEntry(entry, link, card) {
   const newLinks = [...(entry.links || []), link];
   if (isLocalId(entry.id)) {
     const idx = localEntries.findIndex(e => e.id === entry.id);
@@ -896,11 +931,11 @@ function attachLinkToEntry(entry, link) {
     overrides[entry.id] = { ...(overrides[entry.id] || {}), links: newLinks };
     saveOverrides(overrides);
   }
-  // 주의: 여기서 render()를 부르면 열려 있는 "링크 찾기" 결과 박스가 통째로 사라진다 —
-  // 저장만 하고 화면 갱신은 다음 자연스러운 render(필터 클릭 등) 때 반영되게 둔다.
+  entry.links = newLinks; // 지금 화면에 떠 있는 entry 객체도 갱신 — 같은 카드에서 또 찾기를 눌러도 반영되게
+  if (card) patchCardLinks(card, entry);
 }
 
-function renderLinkCandidates(box, items, entry) {
+function renderLinkCandidates(box, items, entry, card) {
   items.forEach(item => {
     const row = document.createElement("div");
     row.className = "ex-item ex-item--compact";
@@ -913,8 +948,8 @@ function renderLinkCandidates(box, items, entry) {
       <button type="button" class="ex-add">붙이기</button>`;
     row.querySelector(".ex-play").addEventListener("click", () => previewVideo(item, entry));
     row.querySelector(".ex-add").addEventListener("click", () => {
-      attachLinkToEntry(entry, { label: `${item.channel} ${item.date}`.trim(), url: item.url });
-      row.querySelector(".ex-add").textContent = "붙음";
+      attachLinkToEntry(entry, { label: `${item.channel} ${item.date}`.trim(), url: item.url }, card);
+      row.querySelector(".ex-add").textContent = "✓ 카드에 추가됨";
       row.querySelector(".ex-add").disabled = true;
     });
     box.insertBefore(row, box.querySelector(".ask-ai-cancel"));
@@ -946,7 +981,7 @@ function startFindLinks(card, entry) {
       if (!items.length) { resultEl.textContent = "검색 결과가 없습니다."; return; }
       resultEl.remove();
       items.forEach(it => { it.artist = performer; });
-      renderLinkCandidates(box, items, entry);
+      renderLinkCandidates(box, items, entry, card);
     });
     return;
   }
@@ -966,7 +1001,7 @@ function startFindLinks(card, entry) {
     const items = parseLinkResults(text).filter(it => youtubeIdFrom(it.url));
     if (items.length === 0) { resultEl.textContent = "유튜브 링크를 못 찾았습니다:\n" + text; return; }
     resultEl.remove();
-    renderLinkCandidates(box, items, entry);
+    renderLinkCandidates(box, items, entry, card);
   });
 }
 

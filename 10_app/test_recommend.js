@@ -55,4 +55,15 @@ function idsOf(entries) {
   console.log("case 6 (기본, 오늘 들은 것 제외) OK:", idsOf(result));
 }
 
+// Case 7 (2026-08-29): daySeed가 있으면 날짜별로 다른 픽이 나온다 — "매일 똑같아서 지루하다"는
+// 실사용 피드백에 대한 회귀 테스트. daySeed 없는 케이스(4·6 위)는 여전히 옛날처럼 고정이어야 한다.
+{
+  const day1 = recommend(seed, [], { limit: 3, daySeed: "2026-08-29" });
+  const day2 = recommend(seed, [], { limit: 3, daySeed: "2026-09-02" });
+  assert.notDeepEqual(idsOf(day1), idsOf(day2), "날짜가 다르면 최소 한 슬롯은 바뀌어야 한다");
+  // 같은 날짜를 두 번 호출해도 항상 같은 결과(순수 함수 — 새로고침해도 하루 안에서는 안 흔들림)
+  assert.deepEqual(idsOf(day1), idsOf(recommend(seed, [], { limit: 3, daySeed: "2026-08-29" })));
+  console.log("case 7 (daySeed 로테이션) OK:", idsOf(day1), "vs", idsOf(day2));
+}
+
 console.log("모든 케이스 통과");

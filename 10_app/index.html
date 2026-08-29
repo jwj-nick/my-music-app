@@ -13,8 +13,29 @@
       <h1>my-music-app</h1>
       <p class="sub">Nick의 청음실 — 취향 큐레이션 · 지식노트 · AI 탐구</p>
     </div>
-    <button id="theme-toggle" type="button" aria-label="테마 전환">◐</button>
+    <div class="topbar-actions">
+      <button id="settings-toggle" type="button" aria-label="설정" class="icon-btn">⚙</button>
+      <button id="theme-toggle" type="button" aria-label="테마 전환" class="icon-btn">◐</button>
+    </div>
   </header>
+
+  <div id="settings-box" class="settings-box" hidden>
+    <label for="f-apikey">Claude API 키 <span class="settings-note" style="font-weight:400">— AI 질문·추천·브리핑용</span></label>
+    <input id="f-apikey" type="password" placeholder="sk-ant-...">
+    <p id="apikey-status" class="apikey-status"></p>
+    <div class="settings-actions">
+      <button id="apikey-save" type="button">저장</button>
+      <button id="apikey-delete" type="button">삭제</button>
+    </div>
+    <label for="f-ytkey" style="margin-top:0.5rem">YouTube Data API 키 <span class="settings-note" style="font-weight:400">— 링크 찾기·영상 검색용 (유튜브 검색 품질)</span></label>
+    <input id="f-ytkey" type="password" placeholder="AIza...">
+    <p id="ytkey-status" class="apikey-status"></p>
+    <div class="settings-actions">
+      <button id="ytkey-save" type="button">저장</button>
+      <button id="ytkey-delete" type="button">삭제</button>
+    </div>
+    <p class="settings-note">두 키 모두 이 브라우저의 localStorage에만 저장됩니다 — git에 올라가지 않고, "내보내기"에도 포함되지 않으며, 다른 기기에서는 다시 입력해야 합니다.</p>
+  </div>
 
   <nav id="intent-filter" class="tabs" aria-label="컬렉션 탭"></nav>
 
@@ -49,7 +70,6 @@
       <button id="play-all" type="button">▶ 지금 목록 재생</button>
       <button id="add-toggle" type="button">+ 새 항목 추가</button>
       <button id="export-toggle" type="button">내보내기</button>
-      <button id="settings-toggle" type="button">설정</button>
     </div>
     <p id="play-status" class="count"></p>
 
@@ -68,24 +88,6 @@
     </div>
 
     <textarea id="export-box" class="export-box" hidden readonly></textarea>
-
-    <div id="settings-box" class="settings-box" hidden>
-      <label for="f-apikey">Claude API 키 <span class="settings-note" style="font-weight:400">— AI 질문·추천·브리핑용</span></label>
-      <input id="f-apikey" type="password" placeholder="sk-ant-...">
-      <p id="apikey-status" class="apikey-status"></p>
-      <div class="settings-actions">
-        <button id="apikey-save" type="button">저장</button>
-        <button id="apikey-delete" type="button">삭제</button>
-      </div>
-      <label for="f-ytkey" style="margin-top:0.5rem">YouTube Data API 키 <span class="settings-note" style="font-weight:400">— 링크 찾기·영상 검색용 (유튜브 검색 품질)</span></label>
-      <input id="f-ytkey" type="password" placeholder="AIza...">
-      <p id="ytkey-status" class="apikey-status"></p>
-      <div class="settings-actions">
-        <button id="ytkey-save" type="button">저장</button>
-        <button id="ytkey-delete" type="button">삭제</button>
-      </div>
-      <p class="settings-note">두 키 모두 이 브라우저의 localStorage에만 저장됩니다 — git에 올라가지 않고, "내보내기"에도 포함되지 않으며, 다른 기기에서는 다시 입력해야 합니다.</p>
-    </div>
   </section>
 
   <main id="entry-list" class="entry-list reveal"></main>

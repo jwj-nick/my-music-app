@@ -17,6 +17,16 @@
 - **B5. 추천 로직에 청취 로그 가중치**: 지금은 "골고루+오늘 제외"뿐 — 로그가 쌓이면
   "자주 들은 태그 우선" 같은 규칙 추가 (recommend()에 opts로, 순수성 유지).
 
+## AI 응답 품질 (별도 트랙 — 2026-08-29, 여기서 안 다룸)
+
+- **B11. AI 응답 품질을 제대로 높이기**: 프롬프트 설계·구조화 출력(tool_choice 강제 등)·
+  도구 선택 판단을 CCAR-F 공부와 연계해서 자세히 배운 뒤 `buildQuery()`에 반영하고 싶다고
+  Nick이 지정 — my-music-app에서 얕게 계속 땜질하지 않고 **별도로 천천히**. 실전에서 겪은
+  실패 3건(도구 미장착, 형식 계약 깨짐, AI보다 전용 API가 나은 경우)을 케이스 스터디로
+  정리해 `C:\01_Labs\ccar-f-study\10_domains\D4_prompt_structured_output\
+  case-study_my-music-app.md`에 넘겨뒀다(decisions.md #56). 공부가 정리되면 그쪽에서
+  이 workspace로 다시 가져와 적용하는 흐름.
+
 ## 인프라/품질
 
 - **B6. Phase 3 러프 APK**: MASTER_PLAN의 원래 계획("Phase 1 직후 러프 1차")이 아직 미실행 —

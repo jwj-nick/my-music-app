@@ -120,6 +120,7 @@
 | PW4 | 패키징 방식 = render-ext 패턴 채택 | TWA/PWABuilder 대신 **네이티브 WebView + WebViewAssetLoader**(decisions.md #59) — Nick이 예전에 만든 `render-ext`가 실은 이 방식이었음을 확인. `android/` 전체 Gradle 프로젝트(MainActivity·매니페스트·아이콘) 생성 완료 | 코드 리뷰 — render-ext 패턴과 대조 | ✅ 결정·구현 완료 |
 | PW5 | 로컬 빌드 환경 | Claude가 scoop으로 `temurin17-jdk`(182MB)+`gradle`(246MB, 9.7.1) 설치, `android/local.properties`에 SDK 경로 지정(#60) | `java -version`·`gradle -version` 확인 완료 | ✅ 완료 |
 | PW6 | 첫 디버그 APK 빌드 | `gradle assembleDebug` → `app-debug.apk`(1.2MB) 생성, Nick에게 전달 완료(#60) | **폰에 설치해 아이콘 실행, 로그인·재생·AI 탐구 전부 동작하는지 확인** | 🔵 빌드 완료, Nick 설치 확인 대기 |
+| PW6.1 | GitHub Releases 배포 | `v0.1.0` 릴리스 생성(버전고정본+`latest` 별칭 자산), README에 `/releases/latest/download/` 고정 링크, 재현용 `android/make-release.ps1`(#61) | 링크로 APK 다운로드되는지 확인(curl 302 확인 완료) | ✅ 완료 |
 | PW7 | 릴리스 서명 | 키스토어 생성 후 서명된 APK/AAB — **키스토어는 반드시 안전한 곳에 백업**(잃으면 이후 업데이트 불가, repo엔 `.gitignore`로 차단됨) | 서명된 APK 설치·정상 동작 확인 | ⏳ PW6 확인 이후 |
 
 Phase 3의 정식 세부 계획(PW4 이후)은 Nick이 도구를 고른 다음 구체화한다.

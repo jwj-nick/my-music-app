@@ -1,0 +1,16 @@
+{
+  "name": "my-music-app — Nick의 청음실",
+  "short_name": "청음실",
+  "description": "Nick 전용 취향 큐레이션·지식노트·AI 탐구 음악 허브",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#EEF0F6",
+  "theme_color": "#3556C8",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}

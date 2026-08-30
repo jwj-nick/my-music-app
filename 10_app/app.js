@@ -48,8 +48,17 @@ function initTheme() {
   });
 }
 
+// PWA 서비스 워커 등록 (Phase 3 준비, 2026-08-30) — 실패해도 앱 동작엔 영향 없음
+// (구버전 브라우저, file:// 로컬 열람 등에서도 조용히 무시되게).
+function registerServiceWorker() {
+  if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+    navigator.serviceWorker.register("sw.js").catch(() => {});
+  }
+}
+
 async function init() {
   initTheme();
+  registerServiceWorker();
   const res = await fetch("data/seed.json");
   allEntries = await res.json();
   localEntries = loadLocalEntries();

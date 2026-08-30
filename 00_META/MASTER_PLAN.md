@@ -118,9 +118,9 @@
 | PW2 | 서비스 워커(오프라인) | `sw.js` — 네트워크 우선 + 오프라인 캐시 폴백, 같은 출처만 처리 | 로컬 서버에서 등록·캐시 확인(Chrome 자동화로 검증 완료) | ✅ 구현·배포 |
 | PW3 | 폰에서 "홈 화면에 추가" | 위 둘의 실사용 결과 | **폰 Chrome에서 라이브 사이트 열고 "홈 화면에 추가" → 아이콘 생기는지, 독립 창으로 뜨는지, 비행기모드에서 열리는지** | ⏳ Nick 확인 대기 |
 | PW4 | 패키징 방식 = render-ext 패턴 채택 | TWA/PWABuilder 대신 **네이티브 WebView + WebViewAssetLoader**(decisions.md #59) — Nick이 예전에 만든 `render-ext`가 실은 이 방식이었음을 확인. `android/` 전체 Gradle 프로젝트(MainActivity·매니페스트·아이콘) 생성 완료 | 코드 리뷰 — render-ext 패턴과 대조 | ✅ 결정·구현 완료 |
-| PW5 | 로컬 빌드 환경 | 이 머신에 Android SDK는 있으나 **JDK가 없음** — `scoop bucket add java && scoop install temurin17-jdk gradle` 필요(`android/BUILD.md` 참고) | `java -version`·`gradle -version` 확인 | ⏳ Nick 설치 대기 |
-| PW6 | 첫 디버그 APK 빌드·설치 | `gradle assembleDebug` → `app-debug.apk`를 폰에 설치 | 폰 앱 목록에 "청음실" 아이콘 뜨고 실행되는지, 로그인·재생·AI 탐구 전부 동작하는지 | ⏳ PW5 이후 |
-| PW7 | 릴리스 서명 | 키스토어 생성 후 서명된 APK/AAB — **키스토어는 반드시 안전한 곳에 백업**(잃으면 이후 업데이트 불가, repo엔 `.gitignore`로 차단됨) | 서명된 APK 설치·정상 동작 확인 | ⏳ PW6 이후 |
+| PW5 | 로컬 빌드 환경 | Claude가 scoop으로 `temurin17-jdk`(182MB)+`gradle`(246MB, 9.7.1) 설치, `android/local.properties`에 SDK 경로 지정(#60) | `java -version`·`gradle -version` 확인 완료 | ✅ 완료 |
+| PW6 | 첫 디버그 APK 빌드 | `gradle assembleDebug` → `app-debug.apk`(1.2MB) 생성, Nick에게 전달 완료(#60) | **폰에 설치해 아이콘 실행, 로그인·재생·AI 탐구 전부 동작하는지 확인** | 🔵 빌드 완료, Nick 설치 확인 대기 |
+| PW7 | 릴리스 서명 | 키스토어 생성 후 서명된 APK/AAB — **키스토어는 반드시 안전한 곳에 백업**(잃으면 이후 업데이트 불가, repo엔 `.gitignore`로 차단됨) | 서명된 APK 설치·정상 동작 확인 | ⏳ PW6 확인 이후 |
 
 Phase 3의 정식 세부 계획(PW4 이후)은 Nick이 도구를 고른 다음 구체화한다.
 

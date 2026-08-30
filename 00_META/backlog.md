@@ -29,9 +29,8 @@
 
 ## 인프라/품질
 
-- **B6. Phase 3 러프 APK**: MASTER_PLAN의 원래 계획("Phase 1 직후 러프 1차")이 아직 미실행 —
-  PWA manifest + service worker 먼저(오프라인·홈화면 추가), 그 다음 TWA 래핑.
-  vocab-app에서 PWA 경험 있음(그 패턴 재사용).
+- **B6. Phase 3 APK** — ✅ 착수됨(2026-08-30, decisions.md #58). PWA(매니페스트+서비스워커+아이콘)
+  구현·배포 완료, MASTER_PLAN PW1~PW5 마일스톤 표로 이동. 여기서는 더 추적 안 함.
 - **B7. build_preview.js를 repo로 승격**: 지금은 세션 scratchpad에만 있음 — `scripts/`로
   옮기면 다음 세션에서도 재사용 가능. (세션 종속 경로 제거 필요)
 - **B8. askClaude 스트리밍**: 지금은 응답 완료까지 "물어보는 중..." — 스트리밍으로 바꾸면

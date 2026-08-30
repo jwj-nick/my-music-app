@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- design_plan.md 소프트 글래스 라이트 배경 — 어댑티브 아이콘의 배경 레이어 -->
+    <color name="ic_launcher_background">#EEF0F6</color>
+</resources>

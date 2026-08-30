@@ -889,9 +889,14 @@ async function requestWakeLock() {
       wakeLockSentinel.addEventListener("release", () => { wakeLockSentinel = null; });
     }
   } catch { /* 미지원/거부 — 재생은 계속 */ }
+  // APK(네이티브 WebView)에서는 웹 Wake Lock API가 안 먹힐 수 있어 브리지로 보강한다
+  // (android/.../MainActivity.java의 AndroidBridge.keepScreenOn — decisions.md #40).
+  // 브라우저에서는 window.AndroidBridge가 아예 없으니 조용히 건너뛴다.
+  if (window.AndroidBridge) window.AndroidBridge.keepScreenOn(true);
 }
 function releaseWakeLock() {
   try { if (wakeLockSentinel) { wakeLockSentinel.release(); wakeLockSentinel = null; } } catch {}
+  if (window.AndroidBridge) window.AndroidBridge.keepScreenOn(false);
 }
 
 function updatePlayerInfo() {

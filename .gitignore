@@ -3,3 +3,16 @@ Thumbs.db
 desktop.ini
 .DS_Store
 node_modules/
+
+# android build outputs (render-ext 패턴과 동일 — 소스만 추적, 빌드 산출물은 로컬)
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+android/.idea/
+android/*.apk
+android/*.aab
+# 서명 키스토어 — 앱 업데이트에 계속 필요한 비밀. repo엔 절대 커밋하지 않고 별도 백업.
+android/*.jks
+android/*.keystore
+android/keystore.properties

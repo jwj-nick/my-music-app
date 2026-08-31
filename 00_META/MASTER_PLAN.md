@@ -4,7 +4,7 @@
 > 학습 체크포인트(무엇을 알아야 하는지, 이미 아는지)는 `learning_plan.md`에 따로 관리한다.
 
 ## 현재 위치
-**Phase 3(APK) 착수 (2026-08-30).** Phase 1.5·2 구현 대부분 완료. Phase 3의 1단계 **PWA(매니페스트+서비스워커+아이콘)를 구현·배포 완료**(#58) — 폰에서 "홈 화면에 추가"가 지금 바로 가능. 2단계(TWA로 실제 APK 만들기)는 Nick의 도구 선택이 필요해 대기 중. **남은 확인(누적):** P2·P3(재생 큐·화면 유지) 실사용, 탐구 T2·T3·T4 스팟 체크, 2.5 디자인 리뷰, **PW3.1(PWA 홈 화면 추가) 폰 확인**.
+**Phase 3(APK) 1차 배포 완료, Nick 실사용 중 (2026-08-31).** Phase 1.5·2 구현 완료. Phase 3 — 네이티브 WebView APK(#59) 첫 빌드(#60)를 GitHub Releases로 배포(#61), YouTube API 키 403(리퍼러 불일치, #62) 해결까지 확인됨 — **APK가 폰에서 설치·실행·YouTube 검색까지 동작 확인**. Nick: "더 진행할 거 없어 보임. 천천히 써보면서 피드백 하겠음" — 이번 라운드는 여기서 마무리, 다음은 사용 중 피드백 대기. **남은 것:** PW7(릴리스 서명, Nick의 키스토어 비밀번호 필요) 및 누적 확인 항목(P2·P3 실사용, 탐구 T2~T4 스팟 체크, 2.5 디자인 리뷰) — 전부 급하지 않음, backlog.md 참고.
 **Live:** https://jwj-nick.github.io/my-music-app/ · **Repo:** https://github.com/jwj-nick/my-music-app
 
 ## 작업 방식 — 학습 우선
@@ -119,7 +119,7 @@
 | PW3 | 폰에서 "홈 화면에 추가" | 위 둘의 실사용 결과 | **폰 Chrome에서 라이브 사이트 열고 "홈 화면에 추가" → 아이콘 생기는지, 독립 창으로 뜨는지, 비행기모드에서 열리는지** | ⏳ Nick 확인 대기 |
 | PW4 | 패키징 방식 = render-ext 패턴 채택 | TWA/PWABuilder 대신 **네이티브 WebView + WebViewAssetLoader**(decisions.md #59) — Nick이 예전에 만든 `render-ext`가 실은 이 방식이었음을 확인. `android/` 전체 Gradle 프로젝트(MainActivity·매니페스트·아이콘) 생성 완료 | 코드 리뷰 — render-ext 패턴과 대조 | ✅ 결정·구현 완료 |
 | PW5 | 로컬 빌드 환경 | Claude가 scoop으로 `temurin17-jdk`(182MB)+`gradle`(246MB, 9.7.1) 설치, `android/local.properties`에 SDK 경로 지정(#60) | `java -version`·`gradle -version` 확인 완료 | ✅ 완료 |
-| PW6 | 첫 디버그 APK 빌드 | `gradle assembleDebug` → `app-debug.apk`(1.2MB) 생성, Nick에게 전달 완료(#60) | **폰에 설치해 아이콘 실행, 로그인·재생·AI 탐구 전부 동작하는지 확인** | 🔵 빌드 완료, Nick 설치 확인 대기 |
+| PW6 | 첫 디버그 APK 빌드 | `gradle assembleDebug` → `app-debug.apk`(1.2MB) 생성, Nick에게 전달 완료(#60) | 폰 설치·실행·YouTube 검색(키 리퍼러 이슈 해결, #62) 확인됨. AI 탐구·재생·Spotify/YouTube 앱 전환·화면유지는 Nick이 천천히 써보며 확인 예정 | 🔵 설치·기본 동작 확인(2026-08-31), 나머지는 사용 중 피드백 |
 | PW6.1 | GitHub Releases 배포 | `v0.1.0` 릴리스 생성(버전고정본+`latest` 별칭 자산), README에 `/releases/latest/download/` 고정 링크, 재현용 `android/make-release.ps1`(#61) | 링크로 APK 다운로드되는지 확인(curl 302 확인 완료) | ✅ 완료 |
 | PW7 | 릴리스 서명 | 키스토어 생성 후 서명된 APK/AAB — **키스토어는 반드시 안전한 곳에 백업**(잃으면 이후 업데이트 불가, repo엔 `.gitignore`로 차단됨) | 서명된 APK 설치·정상 동작 확인 | ⏳ PW6 확인 이후 |
 
